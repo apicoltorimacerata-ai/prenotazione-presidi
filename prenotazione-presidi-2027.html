@@ -584,6 +584,37 @@ function generatePdf(){
     y += 16;
   }
 
+  // colonne per la tabella dei presidi: Presidio | Quantità | Prezzo unitario | Importo
+  const colPresidio = marginX;
+  const colQty = marginX + 240;
+  const colPrezzo = marginX + 300;
+  const colImporto = marginX + 400;
+
+  function rowPresidioHeader(){
+    if (y > 780) { doc.addPage(); y = 50; }
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(9);
+    doc.text("Presidio", colPresidio, y);
+    doc.text("Qtà", colQty, y);
+    doc.text("Prezzo unit.", colPrezzo, y);
+    doc.text("Importo", colImporto, y);
+    y += 4;
+    doc.setDrawColor(200, 200, 200);
+    doc.line(marginX, y, 555, y);
+    y += 12;
+    doc.setFontSize(10);
+  }
+
+  function rowPresidio(nome, qty, prezzoUnitario, importo){
+    if (y > 780) { doc.addPage(); y = 50; }
+    doc.setFont("helvetica", "normal");
+    doc.text(nome, colPresidio, y, { maxWidth: 235 });
+    doc.text(String(qty), colQty, y);
+    doc.text(fmt(prezzoUnitario), colPrezzo, y);
+    doc.text(fmt(importo), colImporto, y);
+    y += 16;
+  }
+
   sectionTitle("Dati Anagrafici");
   row("Cognome Nome / Denominazione", payload.cognome_nome);
   row("Email", payload.email);
@@ -604,12 +635,18 @@ function generatePdf(){
   y += 10;
 
   sectionTitle("Presidi Sanitari");
-  PRODUCTS.forEach(p => {
-    const qty = parseFloat(payload[p.key + "_qty"]) || 0;
-    if (qty > 0) {
-      row(`${p.name} (× ${qty})`, fmt(parseFloat(payload[p.key + "_totale_numerico"])));
-    }
-  });
+  const presidiOrdinati = PRODUCTS.filter(p => (parseFloat(payload[p.key + "_qty"]) || 0) > 0);
+  if (presidiOrdinati.length) {
+    rowPresidioHeader();
+    presidiOrdinati.forEach(p => {
+      const qty = parseFloat(payload[p.key + "_qty"]) || 0;
+      const tot = parseFloat(payload[p.key + "_totale_numerico"]) || 0;
+      const prezzoUnitario = qty > 0 ? (tot / qty) : 0;
+      rowPresidio(p.name, qty, prezzoUnitario, tot);
+    });
+  } else {
+    row("Nessun presidio selezionato", "");
+  }
   y += 10;
 
   sectionTitle("Riepilogo Economico");
