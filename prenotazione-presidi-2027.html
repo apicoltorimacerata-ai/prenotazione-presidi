@@ -1,0 +1,701 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Prenotazione Presidi 2026 - Apicoltori MC</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+  :root{
+    --green:#178a3d;
+    --green-dark:#106b2e;
+    --bg:#f4f6f5;
+    --card:#ffffff;
+    --border:#dfe3e1;
+    --text:#22292a;
+    --muted:#6b7674;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0;
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    background:var(--bg);
+    color:var(--text);
+    padding:24px 16px 80px;
+  }
+  .wrap{max-width:760px;margin:0 auto;}
+  h1{font-size:1.5rem;margin:0 0 4px;}
+  .subtitle{color:var(--muted);margin:0 0 24px;font-size:.95rem;}
+  .card{
+    background:var(--card);
+    border:1px solid var(--border);
+    border-radius:10px;
+    padding:20px;
+    margin-bottom:16px;
+  }
+  .card h2{
+    font-size:1rem;
+    text-transform:uppercase;
+    letter-spacing:.02em;
+    margin:0 0 16px;
+    color:var(--green-dark);
+    border-bottom:2px solid var(--green);
+    padding-bottom:8px;
+  }
+  .field{margin-bottom:14px;}
+  label{display:block;font-weight:600;font-size:.88rem;margin-bottom:4px;}
+  label .req{color:#c0392b;}
+  .hint{font-size:.78rem;color:var(--muted);margin-top:3px;}
+  input[type=text], input[type=email], input[type=number], select{
+    width:100%;
+    padding:10px 12px;
+    border:1px solid var(--border);
+    border-radius:6px;
+    font-size:.95rem;
+    background:#fff;
+    color:var(--text);
+  }
+  input:focus, select:focus{outline:2px solid var(--green); border-color:var(--green);}
+  .row2{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
+  .row3{display:grid;grid-template-columns:2fr 1fr 1fr;gap:12px;}
+  @media (max-width:520px){ .row2,.row3{grid-template-columns:1fr;} }
+  .product{
+    display:grid;
+    grid-template-columns:2fr 1fr 1fr;
+    gap:12px;
+    align-items:end;
+    padding:12px 0;
+    border-bottom:1px solid var(--border);
+  }
+  .product:last-child{border-bottom:none;}
+  @media (max-width:600px){ .product{grid-template-columns:1fr; } }
+  .product .pname{font-weight:600;font-size:.9rem;}
+  .product .pprice{color:var(--muted);font-weight:400;font-size:.82rem;display:block;margin-top:2px;}
+  .readonly{background:#eef4f0;color:var(--green-dark);font-weight:600;}
+  .grandtotal{
+    display:flex;justify-content:space-between;align-items:center;
+    font-size:1.1rem;font-weight:700;
+    padding-top:14px;margin-top:6px;border-top:2px solid var(--green);
+  }
+  .maxspesa{
+    background:#eef4f0;border:1px solid var(--green);border-radius:8px;
+    padding:10px 14px;font-size:.88rem;margin-top:6px;
+  }
+  button{
+    width:100%;
+    background:var(--green);
+    color:#fff;
+    border:none;
+    padding:14px;
+    font-size:1rem;
+    font-weight:700;
+    border-radius:8px;
+    cursor:pointer;
+  }
+  button:hover{background:var(--green-dark);}
+  button:disabled{background:#9db6a5;cursor:not-allowed;}
+  button.secondary{
+    background:#fff;
+    color:var(--green-dark);
+    border:1.5px solid var(--green);
+  }
+  button.secondary:hover{background:#eef4f0;}
+  .btnrow{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:10px;}
+  @media (max-width:520px){ .btnrow{grid-template-columns:1fr;} }
+  .msg{
+    margin-top:14px;padding:12px 14px;border-radius:8px;font-size:.9rem;display:none;
+  }
+  .msg.ok{background:#e6f4ea;color:#1e7b34;border:1px solid #b6e0c2;display:block;}
+  .msg.err{background:#fdecea;color:#b3261e;border:1px solid #f4c7c3;display:block;}
+  .note{font-size:.8rem;color:var(--muted);margin-top:20px;line-height:1.4;}
+  #reviewSection{display:none;}
+  .review-row{
+    display:flex;justify-content:space-between;gap:12px;
+    padding:7px 0;border-bottom:1px solid var(--border);font-size:.9rem;
+  }
+  .review-row:last-child{border-bottom:none;}
+  .review-row .rlabel{color:var(--muted);}
+  .review-row .rvalue{font-weight:600;text-align:right;}
+  .badge-step{
+    display:inline-block;background:var(--green);color:#fff;font-size:.75rem;
+    padding:3px 10px;border-radius:20px;margin-bottom:10px;font-weight:700;
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Prenotazione Presidi 2026</h1>
+  <p class="subtitle">Consorzio Apistico Provinciale di Macerata &mdash; compila il modulo per prenotare i presidi sanitari</p>
+
+  <!-- ============ STEP 1: MODULO ============ -->
+  <form id="presidiForm">
+
+    <div class="card">
+      <h2>Dati Anagrafici</h2>
+      <div class="field">
+        <label>Cognome Nome / Denominazione <span class="req">*</span></label>
+        <input type="text" name="cognome_nome" required placeholder="Cognome Nome (persone fisiche) o Ragione Sociale (società)">
+      </div>
+      <div class="row2">
+        <div class="field">
+          <label>Email <span class="req">*</span></label>
+          <input type="email" name="email" required>
+        </div>
+        <div class="field">
+          <label>Numero di Telefono <span class="req">*</span></label>
+          <div class="row2" style="gap:8px;">
+            <input type="text" name="prefisso" placeholder="Prefisso" required>
+            <input type="text" name="telefono" placeholder="Numero" required>
+          </div>
+        </div>
+      </div>
+      <div class="row2">
+        <div class="field">
+          <label>Codice Anagrafe Apistica <span class="req">*</span></label>
+          <input type="text" name="codice_anagrafe" required placeholder="esempio 034AN318">
+        </div>
+        <div class="field">
+          <label>Codice Fiscale / P.IVA <span class="req">*</span></label>
+          <input type="text" name="cf_piva" required>
+        </div>
+      </div>
+      <div class="field">
+        <label>Indirizzo <span class="req">*</span></label>
+        <input type="text" name="indirizzo" required placeholder="Indirizzo">
+      </div>
+      <div class="row3">
+        <div class="field">
+          <label>Città <span class="req">*</span></label>
+          <input type="text" name="citta" required>
+        </div>
+        <div class="field">
+          <label>Provincia</label>
+          <input type="text" name="provincia" maxlength="2">
+        </div>
+        <div class="field">
+          <label>Codice Postale <span class="req">*</span></label>
+          <input type="text" name="cap" required>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>Censimento e Adesione</h2>
+      <div class="field">
+        <label>Famiglie denunciate 2025 (arnie + sciami) <span class="req">*</span></label>
+        <input type="number" min="0" step="1" name="famiglie" id="famiglie" required>
+      </div>
+      <div class="maxspesa">Spesa massima ammissibile (9,9&euro; per totale famiglie): <strong id="spesaMax">0,00 €</strong></div>
+      <p class="hint" style="margin-top:12px;">I presidi non saranno prenotati a chi non ha pagato la quota associativa e non ha comunicato al Consorzio i dati del censimento.</p>
+      <div class="field" style="margin-top:10px;">
+        <label>Ho gi&agrave; inviato al Consorzio il censimento 2025 a mezzo modulo internet (scadenza 20 novembre 2025) <span class="req">*</span></label>
+        <select name="censimento_2025" required>
+          <option value="">Seleziona</option>
+          <option value="SI">SI</option>
+          <option value="NO">NO</option>
+        </select>
+      </div>
+      <div class="field">
+        <label>Ho gi&agrave; inviato al Consorzio l'adesione 2025/2026 a mezzo modulo internet <span class="req">*</span></label>
+        <select name="adesione_2025_2026" required>
+          <option value="">Seleziona</option>
+          <option value="SI">SI</option>
+          <option value="NO">NO</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>Presidi Sanitari</h2>
+      <p class="hint" id="listinoStatus">Caricamento listino prezzi (listino.xlsx)...</p>
+      <div id="products"></div>
+      <div class="review-row"><span class="rlabel">Subtotale presidi</span><span class="rvalue" id="subtotalePresidi">0,00 €</span></div>
+      <div class="review-row"><span class="rlabel" id="labelContributoRegione">Contributo Regione</span><span class="rvalue" id="contributoRegione">- 0,00 €</span></div>
+      <div class="review-row"><span class="rlabel" id="labelSpeseAmministrative">Spese generali amministrative</span><span class="rvalue" id="speseAmministrative">+ 0,00 €</span></div>
+      <div class="grandtotal">
+        <span>Totale da pagare</span>
+        <span id="grandTotal">0,00 €</span>
+      </div>
+    </div>
+
+    <button type="submit" id="reviewBtn">Rivedi e conferma prenotazione</button>
+    <div class="msg" id="formMsg"></div>
+
+    <p class="note">
+      Dopo aver verificato i dati potrai scaricare il PDF di riepilogo e confermare l'invio.
+      Il PDF verr&agrave; inviato anche all'indirizzo email indicato nel modulo.
+    </p>
+  </form>
+
+  <!-- ============ STEP 2: RIEPILOGO / CONFERMA ============ -->
+  <div id="reviewSection">
+    <span class="badge-step">Riepilogo prenotazione</span>
+    <div class="card">
+      <h2>Dati Anagrafici</h2>
+      <div id="reviewAnagrafica"></div>
+    </div>
+    <div class="card">
+      <h2>Censimento e Adesione</h2>
+      <div id="reviewCensimento"></div>
+    </div>
+    <div class="card">
+      <h2>Presidi Sanitari</h2>
+      <div id="reviewPresidi"></div>
+      <div class="review-row"><span class="rlabel">Subtotale presidi</span><span class="rvalue" id="reviewSubtotale">0,00 €</span></div>
+      <div class="review-row"><span class="rlabel" id="reviewLabelContributo">Contributo Regione</span><span class="rvalue" id="reviewContributo">- 0,00 €</span></div>
+      <div class="review-row"><span class="rlabel" id="reviewLabelSpese">Spese generali amministrative</span><span class="rvalue" id="reviewSpese">+ 0,00 €</span></div>
+      <div class="grandtotal">
+        <span>Totale da pagare</span>
+        <span id="reviewGrandTotal">0,00 €</span>
+      </div>
+    </div>
+
+    <div class="btnrow" id="reviewBtnRow">
+      <button type="button" class="secondary" id="backBtn">&larr; Torna al modulo</button>
+      <button type="button" class="secondary" id="downloadPdfBtn">Scarica PDF</button>
+    </div>
+    <button type="button" id="confirmBtn" style="margin-top:10px;">Conferma e invia prenotazione</button>
+    <div class="msg" id="reviewMsg"></div>
+
+    <p class="note">
+      Confermando l'invio, i dati saranno salvati nel sistema del Consorzio e il PDF di riepilogo
+      sar&agrave; inviato automaticamente all'indirizzo email indicato. Non sar&agrave; possibile
+      modificare la prenotazione autonomamente dopo l'invio.
+    </p>
+  </div>
+</div>
+
+<script>
+// ------------------------------------------------------------------
+// CONFIGURAZIONE: incolla qui l'URL del tuo Web App di Google Apps Script
+// (vedi le istruzioni fornite separatamente per crearlo)
+// ------------------------------------------------------------------
+const GOOGLE_SCRIPT_URL = "INCOLLA_QUI_URL_APPS_SCRIPT";
+
+// Moltiplicatore massimo consentito: il totale ordinato non può superare
+// (numero famiglie/arnie denunciate) x LIMITE_PER_FAMIGLIA
+const LIMITE_PER_FAMIGLIA = 9.9;
+
+// Listino di riserva, usato SOLO se "listino.xlsx" non può essere caricato
+// (es. file HTML aperto direttamente con doppio click invece che da un server).
+// Il listino "vero" va tenuto aggiornato nel file Excel, non qui.
+const DEFAULT_PRODUCTS = [
+  { key: "apilife_var",      name: "Apilife Var",              desc: "2 sacchetti per arnia",                             price: 2.06,   unit: "Numero sacchetti singoli" },
+  { key: "bioxal_35gr",      name: "Api Bioxal busta 35 gr",   desc: "x 10 arnie",                                        price: 10.00,  unit: "Numero buste" },
+  { key: "bioxal_175gr",     name: "Api Bioxal busta 175 gr",  desc: "x 50 arnie",                                        price: 40.87,  unit: "Numero buste" },
+  { key: "bioxal_350gr",     name: "Api Bioxal busta 350 gr",  desc: "x 10 arnie",                                        price: 67.69,  unit: "Numero buste" },
+  { key: "bioxal_pronto500", name: "Api-Bioxal Pronto 500 ml", desc: "flacone",                                           price: 18.86,  unit: "Numero flaconi" },
+  { key: "bioxal_pronto5l",  name: "Api Bioxal Pronto 5 L",    desc: "tanica",                                            price: 115.80, unit: "Numero taniche" },
+  { key: "apiguard",         name: "Apiguard",                 desc: "scatola 10 vaschette (2 vaschette/arnia)",          price: 22.77,  unit: "Numero scatole da 10 vaschette" },
+  { key: "apivar",           name: "Apivar",                   desc: "confezione (1 conf. 5 arnie)",                      price: 23.41,  unit: "Numero confezioni singole" },
+  { key: "calistrip",        name: "Calistrip Biox",           desc: "confezione (1 conf. 5 arnie)",                      price: 37.95,  unit: "Numero confezioni singole" },
+  { key: "apitraz",          name: "Apitraz",                  desc: "confezione (1 conf. 10 strisce 30x4cm)",            price: 30.25,  unit: "Numero confezioni singole" }
+];
+
+// Percentuali di riserva, usate SOLO se il foglio "Parametri" di listino.xlsx
+// non può essere letto. I valori "veri" vanno tenuti aggiornati nell'Excel.
+const DEFAULT_PARAMS = {
+  contributoRegionePct: 75,
+  speseAmministrativePct: 5
+};
+
+let PRODUCTS = [];
+let PARAMS = { ...DEFAULT_PARAMS };
+const productsEl = document.getElementById("products");
+const listinoStatus = document.getElementById("listinoStatus");
+
+function renderProducts(){
+  productsEl.innerHTML = "";
+  PRODUCTS.forEach(p => {
+    const row = document.createElement("div");
+    row.className = "product";
+    const priceLabel = p.price.toLocaleString("it-IT", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    row.innerHTML = `
+      <div class="field" style="margin-bottom:0;">
+        <span class="pname">${p.name}<span class="pprice">${priceLabel} € &mdash; ${p.desc}</span></span>
+      </div>
+      <div class="field" style="margin-bottom:0;">
+        <label>${p.unit}</label>
+        <input type="number" min="0" step="1" value="0" name="${p.key}_qty" data-price="${p.price}" class="qty-input">
+      </div>
+      <div class="field" style="margin-bottom:0;">
+        <label>Totale €</label>
+        <input type="text" class="readonly" readonly name="${p.key}_totale" value="0,00 €">
+      </div>
+    `;
+    productsEl.appendChild(row);
+  });
+  productsEl.addEventListener("input", recalc);
+  recalc();
+}
+
+// -------- caricamento del listino da listino.xlsx (fogli "Listino" e "Parametri") --------
+async function loadListino(){
+  try {
+    const resp = await fetch("listino.xlsx");
+    if (!resp.ok) throw new Error("file non trovato");
+    const buf = await resp.arrayBuffer();
+    const wb = XLSX.read(buf, { type: "array" });
+
+    const sheet = wb.Sheets["Listino"] || wb.Sheets[wb.SheetNames[0]];
+    const rows = XLSX.utils.sheet_to_json(sheet, { defval: "" });
+    const loaded = rows
+      .filter(r => r["Chiave"] && r["Nome Prodotto"])
+      .map(r => ({
+        key: String(r["Chiave"]).trim(),
+        name: String(r["Nome Prodotto"]).trim(),
+        desc: String(r["Descrizione"] || "").trim(),
+        price: parseFloat(r["Prezzo Unitario (€)"]) || 0,
+        unit: String(r["Unità di Misura (etichetta campo quantità)"] || "Quantità").trim()
+      }));
+    if (!loaded.length) throw new Error("listino vuoto");
+    PRODUCTS = loaded;
+
+    // foglio "Parametri": percentuali contributo regione / spese amministrative
+    const paramSheet = wb.Sheets["Parametri"];
+    if (paramSheet) {
+      const paramRows = XLSX.utils.sheet_to_json(paramSheet, { defval: "" });
+      paramRows.forEach(r => {
+        const chiave = String(r["Chiave"] || "").trim();
+        const val = parseFloat(r["Percentuale (%)"]);
+        if (chiave === "contributo_regione_pct" && !isNaN(val)) PARAMS.contributoRegionePct = val;
+        if (chiave === "spese_amministrative_pct" && !isNaN(val)) PARAMS.speseAmministrativePct = val;
+      });
+    }
+
+    listinoStatus.textContent = "Listino e parametri caricati da listino.xlsx.";
+    listinoStatus.style.color = "";
+  } catch (err) {
+    PRODUCTS = DEFAULT_PRODUCTS;
+    PARAMS = { ...DEFAULT_PARAMS };
+    listinoStatus.textContent = "Impossibile caricare listino.xlsx (assicurati che il file si trovi nella stessa cartella e che la pagina sia aperta da un server web, non con doppio click): vengono usati i prezzi e le percentuali predefinite incorporate nella pagina.";
+    listinoStatus.style.color = "#b3261e";
+  }
+  updateBreakdownLabels();
+  renderProducts();
+}
+
+function updateBreakdownLabels(){
+  const rPct = PARAMS.contributoRegionePct;
+  const sPct = PARAMS.speseAmministrativePct;
+  ["labelContributoRegione", "reviewLabelContributo"].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.textContent = `Contributo Regione (- ${rPct}%)`;
+  });
+  ["labelSpeseAmministrative", "reviewLabelSpese"].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.textContent = `Spese generali amministrative (+ ${sPct}%)`;
+  });
+}
+
+loadListino();
+
+function fmt(n){
+  return n.toLocaleString("it-IT", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + " €";
+}
+
+// Calcola il breakdown economico a partire dal subtotale presidi (prezzo × quantità):
+// si sottrae il contributo Regione e si aggiungono le spese generali amministrative.
+function computeBreakdown(subtotale){
+  const contributoRegione = subtotale * (PARAMS.contributoRegionePct / 100);
+  const speseAmministrative = subtotale * (PARAMS.speseAmministrativePct / 100);
+  const totale = subtotale - contributoRegione + speseAmministrative;
+  return { subtotale, contributoRegione, speseAmministrative, totale };
+}
+
+function recalc(){
+  let subtotale = 0;
+  document.querySelectorAll(".qty-input").forEach(inp => {
+    const qty = parseFloat(inp.value) || 0;
+    const price = parseFloat(inp.dataset.price) || 0;
+    const totaleRiga = qty * price;
+    subtotale += totaleRiga;
+    const totField = document.querySelector(`input[name="${inp.name.replace('_qty','_totale')}"]`);
+    if (totField) totField.value = fmt(totaleRiga);
+  });
+
+  const b = computeBreakdown(subtotale);
+  document.getElementById("subtotalePresidi").textContent = fmt(b.subtotale);
+  document.getElementById("contributoRegione").textContent = "- " + fmt(b.contributoRegione);
+  document.getElementById("speseAmministrative").textContent = "+ " + fmt(b.speseAmministrative);
+  document.getElementById("grandTotal").textContent = fmt(b.totale);
+
+  return subtotale;
+}
+
+const famiglieInput = document.getElementById("famiglie");
+famiglieInput.addEventListener("input", () => {
+  const f = parseFloat(famiglieInput.value) || 0;
+  document.getElementById("spesaMax").textContent = fmt(f * LIMITE_PER_FAMIGLIA);
+});
+
+const form = document.getElementById("presidiForm");
+const formMsg = document.getElementById("formMsg");
+const reviewMsg = document.getElementById("reviewMsg");
+const reviewSection = document.getElementById("reviewSection");
+
+// -------- raccolta dati in un unico oggetto --------
+function collectPayload(){
+  const data = new FormData(form);
+  const payload = {};
+  data.forEach((value, key) => { payload[key] = value; });
+
+  let subtotale = 0;
+  PRODUCTS.forEach(p => {
+    const qty = parseFloat(payload[p.key + "_qty"]) || 0;
+    const tot = qty * p.price;
+    payload[p.key + "_totale_numerico"] = tot.toFixed(2);
+    subtotale += tot;
+  });
+
+  const b = computeBreakdown(subtotale);
+  payload["subtotale_presidi"] = b.subtotale.toFixed(2);
+  payload["contributo_regione_pct"] = PARAMS.contributoRegionePct;
+  payload["contributo_regione"] = b.contributoRegione.toFixed(2);
+  payload["spese_amministrative_pct"] = PARAMS.speseAmministrativePct;
+  payload["spese_amministrative"] = b.speseAmministrative.toFixed(2);
+  payload["totale_complessivo"] = b.totale.toFixed(2);
+  payload["spesa_massima_ammissibile"] = ((parseFloat(payload["famiglie"]) || 0) * LIMITE_PER_FAMIGLIA).toFixed(2);
+  payload["timestamp"] = new Date().toISOString();
+  return payload;
+}
+
+// -------- STEP 1 -> STEP 2: validazione e riepilogo --------
+form.addEventListener("submit", (e) => {
+  e.preventDefault();
+  formMsg.className = "msg";
+  formMsg.style.removeProperty("display");
+
+  if (!form.checkValidity()) {
+    form.reportValidity();
+    return;
+  }
+
+  const subtotale = recalc();
+  const famiglie = parseFloat(famiglieInput.value) || 0;
+  const limiteMax = famiglie * LIMITE_PER_FAMIGLIA;
+
+  if (subtotale > limiteMax) {
+    formMsg.className = "msg err";
+    formMsg.innerHTML = `Il subtotale dei presidi ordinati (<strong>${fmt(subtotale)}</strong>) supera il limite massimo ordinabile per il numero di famiglie dichiarate (<strong>${famiglie} × 9,9 € = ${fmt(limiteMax)}</strong>). Riduci le quantità richieste per procedere.`;
+    return;
+  }
+
+  buildReview();
+  form.style.display = "none";
+  reviewSection.style.display = "block";
+  window.scrollTo({ top: 0, behavior: "smooth" });
+});
+
+function buildReview(){
+  const payload = collectPayload();
+
+  const anagraficaRows = [
+    ["Cognome Nome / Denominazione", payload.cognome_nome],
+    ["Email", payload.email],
+    ["Telefono", `${payload.prefisso || ""} ${payload.telefono || ""}`.trim()],
+    ["Codice Anagrafe Apistica", payload.codice_anagrafe],
+    ["Codice Fiscale / P.IVA", payload.cf_piva],
+    ["Indirizzo", payload.indirizzo],
+    ["Città", payload.citta],
+    ["Provincia", payload.provincia || "-"],
+    ["CAP", payload.cap]
+  ];
+  document.getElementById("reviewAnagrafica").innerHTML = anagraficaRows.map(r =>
+    `<div class="review-row"><span class="rlabel">${r[0]}</span><span class="rvalue">${escapeHtml(r[1] || "-")}</span></div>`
+  ).join("");
+
+  const censimentoRows = [
+    ["Famiglie denunciate 2025", payload.famiglie],
+    ["Spesa massima ammissibile (9,9€/famiglia)", fmt(parseFloat(payload.spesa_massima_ammissibile))],
+    ["Censimento 2025 inviato", payload.censimento_2025],
+    ["Adesione 2025/2026 inviata", payload.adesione_2025_2026]
+  ];
+  document.getElementById("reviewCensimento").innerHTML = censimentoRows.map(r =>
+    `<div class="review-row"><span class="rlabel">${r[0]}</span><span class="rvalue">${escapeHtml(String(r[1] ?? "-"))}</span></div>`
+  ).join("");
+
+  const presidiRows = PRODUCTS
+    .map(p => ({ p, qty: parseFloat(payload[p.key + "_qty"]) || 0, tot: parseFloat(payload[p.key + "_totale_numerico"]) || 0 }))
+    .filter(x => x.qty > 0);
+
+  document.getElementById("reviewPresidi").innerHTML = presidiRows.length
+    ? presidiRows.map(x =>
+        `<div class="review-row"><span class="rlabel">${x.p.name} (× ${x.qty})</span><span class="rvalue">${fmt(x.tot)}</span></div>`
+      ).join("")
+    : `<div class="review-row"><span class="rlabel">Nessun presidio selezionato</span></div>`;
+
+  document.getElementById("reviewSubtotale").textContent = fmt(parseFloat(payload.subtotale_presidi));
+  document.getElementById("reviewContributo").textContent = "- " + fmt(parseFloat(payload.contributo_regione));
+  document.getElementById("reviewSpese").textContent = "+ " + fmt(parseFloat(payload.spese_amministrative));
+  document.getElementById("reviewGrandTotal").textContent = fmt(parseFloat(payload.totale_complessivo));
+  updateBreakdownLabels();
+}
+
+function escapeHtml(str){
+  return String(str)
+    .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+}
+
+document.getElementById("backBtn").addEventListener("click", () => {
+  reviewSection.style.display = "none";
+  form.style.display = "block";
+  window.scrollTo({ top: 0, behavior: "smooth" });
+});
+
+// -------- generazione PDF (usata sia per il download che per l'invio email) --------
+function generatePdf(){
+  const payload = collectPayload();
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF({ unit: "pt", format: "a4" });
+  const marginX = 40;
+  let y = 50;
+
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(16);
+  doc.text("Prenotazione Presidi 2026", marginX, y);
+  y += 18;
+  doc.setFontSize(10);
+  doc.setFont("helvetica", "normal");
+  doc.text("Consorzio Apistico Provinciale di Macerata", marginX, y);
+  y += 25;
+
+  function sectionTitle(title){
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(12);
+    doc.setTextColor(23, 138, 61);
+    doc.text(title, marginX, y);
+    doc.setTextColor(0, 0, 0);
+    y += 6;
+    doc.setDrawColor(23, 138, 61);
+    doc.line(marginX, y, 555, y);
+    y += 16;
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(10);
+  }
+
+  function row(label, value){
+    if (y > 780) { doc.addPage(); y = 50; }
+    doc.setFont("helvetica", "bold");
+    doc.text(String(label), marginX, y);
+    doc.setFont("helvetica", "normal");
+    doc.text(String(value ?? "-"), marginX + 230, y);
+    y += 16;
+  }
+
+  sectionTitle("Dati Anagrafici");
+  row("Cognome Nome / Denominazione", payload.cognome_nome);
+  row("Email", payload.email);
+  row("Telefono", `${payload.prefisso || ""} ${payload.telefono || ""}`.trim());
+  row("Codice Anagrafe Apistica", payload.codice_anagrafe);
+  row("Codice Fiscale / P.IVA", payload.cf_piva);
+  row("Indirizzo", payload.indirizzo);
+  row("Città", payload.citta);
+  row("Provincia", payload.provincia || "-");
+  row("CAP", payload.cap);
+  y += 10;
+
+  sectionTitle("Censimento e Adesione");
+  row("Famiglie denunciate 2025", payload.famiglie);
+  row("Spesa massima ammissibile (9,9€/famiglia)", fmt(parseFloat(payload.spesa_massima_ammissibile)));
+  row("Censimento 2025 inviato", payload.censimento_2025);
+  row("Adesione 2025/2026 inviata", payload.adesione_2025_2026);
+  y += 10;
+
+  sectionTitle("Presidi Sanitari");
+  PRODUCTS.forEach(p => {
+    const qty = parseFloat(payload[p.key + "_qty"]) || 0;
+    if (qty > 0) {
+      row(`${p.name} (× ${qty})`, fmt(parseFloat(payload[p.key + "_totale_numerico"])));
+    }
+  });
+  y += 10;
+
+  sectionTitle("Riepilogo Economico");
+  row("Subtotale presidi (prezzo × quantità)", fmt(parseFloat(payload.subtotale_presidi)));
+  row(`Contributo Regione (- ${payload.contributo_regione_pct}%)`, "- " + fmt(parseFloat(payload.contributo_regione)));
+  row(`Spese generali amministrative (+ ${payload.spese_amministrative_pct}%)`, "+ " + fmt(parseFloat(payload.spese_amministrative)));
+  y += 6;
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(12);
+  doc.text("Totale da pagare", marginX, y);
+  doc.text(fmt(parseFloat(payload.totale_complessivo)), marginX + 230, y);
+  y += 25;
+
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(8);
+  doc.setTextColor(120, 120, 120);
+  doc.text(`Documento generato il ${new Date().toLocaleString("it-IT")}`, marginX, y);
+
+  return doc;
+}
+
+document.getElementById("downloadPdfBtn").addEventListener("click", () => {
+  const doc = generatePdf();
+  const payload = collectPayload();
+  const safeName = (payload.cognome_nome || "prenotazione").replace(/[^a-z0-9]+/gi, "_");
+  doc.save(`prenotazione_presidi_2026_${safeName}.pdf`);
+});
+
+// -------- STEP 2: conferma invio (salvataggio + email con PDF) --------
+const confirmBtn = document.getElementById("confirmBtn");
+
+confirmBtn.addEventListener("click", async () => {
+  reviewMsg.className = "msg";
+  reviewMsg.style.removeProperty("display");
+
+  if (GOOGLE_SCRIPT_URL.includes("INCOLLA_QUI")) {
+    reviewMsg.className = "msg err";
+    reviewMsg.textContent = "Configurazione mancante: inserisci l'URL dello script Google nel codice (GOOGLE_SCRIPT_URL) prima di usare il modulo.";
+    return;
+  }
+
+  const payload = collectPayload();
+
+  // doppio controllo di sicurezza anche in fase di conferma (sul subtotale presidi, non sul totale finale)
+  const famiglie = parseFloat(payload.famiglie) || 0;
+  const subtotale = parseFloat(payload.subtotale_presidi) || 0;
+  if (subtotale > famiglie * LIMITE_PER_FAMIGLIA) {
+    reviewMsg.className = "msg err";
+    reviewMsg.textContent = "Il subtotale dei presidi supera il limite massimo ordinabile. Torna al modulo e correggi le quantità.";
+    return;
+  }
+
+  confirmBtn.disabled = true;
+  confirmBtn.textContent = "Invio in corso...";
+
+  try {
+    // Il PDF inviato via email viene generato lato server dallo script Google
+    // a partire dal modello Word/Google Doc (modello_pdf.docx), così è facile
+    // da modificare senza toccare il codice. Qui inviamo solo i dati.
+    await fetch(GOOGLE_SCRIPT_URL, {
+      method: "POST",
+      mode: "no-cors",
+      headers: { "Content-Type": "text/plain;charset=utf-8" },
+      body: JSON.stringify(payload)
+    });
+
+    // in modalità no-cors la risposta non è leggibile: consideriamo l'invio riuscito
+    reviewMsg.className = "msg ok";
+    reviewMsg.innerHTML = "Prenotazione inviata correttamente. Riceverai il PDF di riepilogo all'indirizzo email indicato.";
+    confirmBtn.textContent = "Prenotazione inviata";
+    document.getElementById("reviewBtnRow").style.display = "none";
+
+    // reset per una eventuale nuova prenotazione
+    setTimeout(() => {
+      form.reset();
+      recalc();
+      document.getElementById("spesaMax").textContent = fmt(0);
+    }, 300);
+
+  } catch (err) {
+    reviewMsg.className = "msg err";
+    reviewMsg.textContent = "Si è verificato un errore durante l'invio. Riprova o contatta il Consorzio.";
+    confirmBtn.disabled = false;
+    confirmBtn.textContent = "Conferma e invia prenotazione";
+  }
+});
+</script>
+</body>
+</html>
