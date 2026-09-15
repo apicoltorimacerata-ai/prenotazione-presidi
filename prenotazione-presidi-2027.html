@@ -752,9 +752,16 @@ confirmBtn.addEventListener("click", async () => {
   confirmBtn.textContent = "Invio in corso...";
 
   try {
-    // Il PDF inviato via email viene generato lato server dallo script Google
-    // a partire dal modello Word/Google Doc (modello_pdf.docx), così è facile
-    // da modificare senza toccare il codice. Qui inviamo solo i dati.
+    // Il PDF inviato via email è generato qui nel browser con la STESSA
+    // funzione generatePdf() usata per il pulsante di download, così i due
+    // PDF (quello scaricato e quello allegato all'email) sono identici.
+    // Viene convertito in base64 e inviato insieme ai dati: lo script
+    // Google lo allega direttamente all'email senza ricostruirlo.
+    const pdfDoc = generatePdf();
+    const safeName = (payload.cognome_nome || "prenotazione").replace(/[^a-z0-9]+/gi, "_");
+    payload.pdf_filename = `prenotazione_presidi_2026_${safeName}.pdf`;
+    payload.pdf_base64 = pdfDoc.output("datauristring").split(",")[1];
+
     await fetch(GOOGLE_SCRIPT_URL, {
       method: "POST",
       mode: "no-cors",
