@@ -167,15 +167,16 @@
       <div class="row3">
         <div class="field">
           <label>Città <span class="req">*</span></label>
-          <input type="text" name="citta" required>
+          <input type="text" name="citta" id="citta" required autocomplete="off" list="comuniList">
+          <datalist id="comuniList"></datalist>
         </div>
         <div class="field">
           <label>Provincia</label>
-          <input type="text" name="provincia" maxlength="2">
+          <input type="text" name="provincia" id="provincia" maxlength="2">
         </div>
         <div class="field">
           <label>Codice Postale <span class="req">*</span></label>
-          <input type="text" name="cap" required>
+          <input type="text" name="cap" id="cap" required>
         </div>
       </div>
     </div>
@@ -391,6 +392,53 @@ function updateBreakdownLabels(){
 
 loadListino();
 
+// ------------------------------------------------------------------
+// AUTOCOMPLETAMENTO CITTÀ: elenco ufficiale dei comuni italiani.
+// Alla selezione di un comune vengono compilate automaticamente
+// Provincia e (se univoco) il Codice Postale.
+// ------------------------------------------------------------------
+const COMUNI_URL = "https://raw.githubusercontent.com/matteocontrini/comuni-json/master/comuni.json";
+let COMUNI = [];
+const cittaEl = document.getElementById("citta");
+const provinciaEl = document.getElementById("provincia");
+const capEl = document.getElementById("cap");
+const comuniListEl = document.getElementById("comuniList");
+
+async function loadComuni(){
+  try {
+    const resp = await fetch(COMUNI_URL);
+    if (!resp.ok) return;
+    COMUNI = await resp.json();
+
+    const frag = document.createDocumentFragment();
+    COMUNI.forEach(c => {
+      const opt = document.createElement("option");
+      opt.value = c.nome;
+      frag.appendChild(opt);
+    });
+    comuniListEl.appendChild(frag);
+  } catch (e) {
+    // Nessuna connessione o servizio non raggiungibile: il campo
+    // Città resta un normale campo di testo libero, senza bloccare
+    // la compilazione del modulo.
+    console.warn("Elenco comuni non disponibile:", e);
+  }
+}
+
+function onCittaChange(){
+  if (!COMUNI.length) return;
+  const match = COMUNI.find(c => c.nome.toLowerCase() === cittaEl.value.trim().toLowerCase());
+  if (!match) return;
+  if (match.sigla) provinciaEl.value = match.sigla;
+  if (Array.isArray(match.cap) && match.cap.length === 1) {
+    capEl.value = match.cap[0];
+  }
+}
+
+cittaEl.addEventListener("change", onCittaChange);
+cittaEl.addEventListener("input", onCittaChange);
+loadComuni();
+
 function fmt(n){
   return n.toLocaleString("it-IT", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + " €";
 }
@@ -586,9 +634,9 @@ function generatePdf(){
 
   // colonne per la tabella dei presidi: Presidio | Quantità | Prezzo unitario | Importo
   const colPresidio = marginX;
-  const colQty = marginX + 240;
-  const colPrezzo = marginX + 300;
-  const colImporto = marginX + 400;
+  const colQty = marginX + 320;
+  const colPrezzo = marginX + 360;
+  const colImporto = marginX + 440;
 
   function rowPresidioHeader(){
     if (y > 780) { doc.addPage(); y = 50; }
@@ -596,9 +644,10 @@ function generatePdf(){
     doc.setFontSize(9);
     doc.text("Presidio", colPresidio, y);
     doc.text("Qtà", colQty, y);
-    doc.text("Prezzo unit.", colPrezzo, y);
+    doc.text("Prezzo", colPrezzo, y);
+    doc.text("unitario", colPrezzo, y + 10);
     doc.text("Importo", colImporto, y);
-    y += 4;
+    y += 14;
     doc.setDrawColor(200, 200, 200);
     doc.line(marginX, y, 555, y);
     y += 12;
@@ -608,7 +657,7 @@ function generatePdf(){
   function rowPresidio(nome, qty, prezzoUnitario, importo){
     if (y > 780) { doc.addPage(); y = 50; }
     doc.setFont("helvetica", "normal");
-    doc.text(nome, colPresidio, y, { maxWidth: 235 });
+    doc.text(nome, colPresidio, y, { maxWidth: 315 });
     doc.text(String(qty), colQty, y);
     doc.text(fmt(prezzoUnitario), colPrezzo, y);
     doc.text(fmt(importo), colImporto, y);
