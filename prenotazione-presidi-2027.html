@@ -256,10 +256,20 @@
       <div id="reviewPresidi"></div>
       <div class="review-row"><span class="rlabel">Subtotale presidi</span><span class="rvalue" id="reviewSubtotale">0,00 €</span></div>
       <div class="review-row"><span class="rlabel" id="reviewLabelContributo">Contributo Regione</span><span class="rvalue" id="reviewContributo">- 0,00 €</span></div>
+      <p class="hint" style="margin:-4px 0 8px;">CONTRIBUTO EROGATO AI SENSI DEL BANDO REGIONALE di accesso ai benefici previsti dal "Sottoprogramma apistico Regione MARCHE 2023/2027". Annata apistica 2026 - Delibera di Giunta Regionale n. 1366 del 11/08/2025 - decreto dirigente direzione agricoltura n 587 del 10/09/2025 - AZIONE B1.1.</p>
       <div class="review-row"><span class="rlabel" id="reviewLabelSpese">Spese generali amministrative</span><span class="rvalue" id="reviewSpese">+ 0,00 €</span></div>
       <div class="grandtotal">
         <span>Totale da pagare</span>
         <span id="reviewGrandTotal">0,00 €</span>
+      </div>
+      <div class="maxspesa" style="margin-top:14px;">
+        Ricordati di pagare il totale di <strong id="reviewPagamentoTotale">0,00 €</strong>
+        <br><br>
+        Il pagamento può essere fatto:<br>
+        con bonifico bancario IBAN <strong>IT60Q0331713401000000060816</strong> con causale <strong id="reviewCausale"></strong><br>
+        o<br>
+        direttamente presso gli uffici della segreteria.<br><br>
+        La contabile del bonifico deve essere inviata via internet alla segreteria usando l'applicazione.
       </div>
     </div>
 
@@ -620,6 +630,11 @@ function collectPayload(){
   return payload;
 }
 
+// Causale del bonifico: codice anagrafe apistica + denominazione + "presidi_2027"
+function buildCausale(payload){
+  return `${payload.codice_anagrafe || ""}_${payload.cognome_nome || ""}_presidi_2027`;
+}
+
 // -------- STEP 1 -> STEP 2: validazione e riepilogo --------
 form.addEventListener("submit", (e) => {
   e.preventDefault();
@@ -689,6 +704,8 @@ function buildReview(){
   document.getElementById("reviewContributo").textContent = "- " + fmt(parseFloat(payload.contributo_regione));
   document.getElementById("reviewSpese").textContent = "+ " + fmt(parseFloat(payload.spese_amministrative));
   document.getElementById("reviewGrandTotal").textContent = fmt(parseFloat(payload.totale_complessivo));
+  document.getElementById("reviewPagamentoTotale").textContent = fmt(parseFloat(payload.totale_complessivo));
+  document.getElementById("reviewCausale").textContent = buildCausale(payload);
   updateBreakdownLabels();
 }
 
@@ -812,6 +829,23 @@ function generatePdf(){
   sectionTitle("Riepilogo Economico");
   row("Subtotale presidi (prezzo × quantità)", fmt(parseFloat(payload.subtotale_presidi)));
   row(`Contributo Regione (- ${payload.contributo_regione_pct}%)`, "- " + fmt(parseFloat(payload.contributo_regione)));
+
+  // Nota normativa sul contributo regionale (carattere piccolo)
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(7);
+  doc.setTextColor(120, 120, 120);
+  doc.splitTextToSize(
+    'CONTRIBUTO EROGATO AI SENSI DEL BANDO REGIONALE di accesso ai benefici previsti dal "Sottoprogramma apistico Regione MARCHE 2023/2027". Annata apistica 2026 - Delibera di Giunta Regionale n. 1366 del 11/08/2025 - decreto dirigente direzione agricoltura n 587 del 10/09/2025 - AZIONE B1.1.',
+    515
+  ).forEach(line => {
+    if (y > 780) { doc.addPage(); y = 50; }
+    doc.text(line, marginX, y);
+    y += 9;
+  });
+  y += 4;
+  doc.setTextColor(0, 0, 0);
+  doc.setFontSize(10);
+
   row(`Spese generali amministrative (+ ${payload.spese_amministrative_pct}%)`, "+ " + fmt(parseFloat(payload.spese_amministrative)));
   y += 6;
   doc.setFont("helvetica", "bold");
@@ -820,9 +854,40 @@ function generatePdf(){
   doc.text(fmt(parseFloat(payload.totale_complessivo)), marginX + 230, y);
   y += 25;
 
+  // Promemoria pagamento (totale in grassetto) e istruzioni
+  if (y > 760) { doc.addPage(); y = 50; }
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(10);
+  doc.setTextColor(0, 0, 0);
+  const pagaLabel = "Ricordati di pagare il totale di ";
+  doc.text(pagaLabel, marginX, y);
+  doc.setFont("helvetica", "bold");
+  doc.text(fmt(parseFloat(payload.totale_complessivo)), marginX + doc.getTextWidth(pagaLabel), y);
+  y += 18;
+
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(9);
+  const causale = buildCausale(payload);
+  const pagamentoLinee = [
+    "Il pagamento può essere fatto:",
+    `con bonifico bancario IBAN IT60Q0331713401000000060816 con causale ${causale}`,
+    "o",
+    "direttamente presso gli uffici della segreteria.",
+    "La contabile del bonifico deve essere inviata via internet alla segreteria usando l'applicazione."
+  ];
+  pagamentoLinee.forEach(linea => {
+    doc.splitTextToSize(linea, 515).forEach(l => {
+      if (y > 780) { doc.addPage(); y = 50; }
+      doc.text(l, marginX, y);
+      y += 13;
+    });
+  });
+  y += 8;
+
   doc.setFont("helvetica", "normal");
   doc.setFontSize(8);
   doc.setTextColor(120, 120, 120);
+  if (y > 780) { doc.addPage(); y = 50; }
   doc.text(`Documento generato il ${new Date().toLocaleString("it-IT")}`, marginX, y);
 
   return doc;
@@ -831,8 +896,12 @@ function generatePdf(){
 document.getElementById("downloadPdfBtn").addEventListener("click", () => {
   const doc = generatePdf();
   const payload = collectPayload();
-  const safeName = (payload.cognome_nome || "prenotazione").replace(/[^a-z0-9]+/gi, "_");
-  doc.save(`prenotazione_presidi_2026_${safeName}.pdf`);
+  const nomeBase = [payload.codice_anagrafe, payload.cognome_nome]
+    .filter(Boolean)
+    .join("_")
+    .replace(/[^a-z0-9]+/gi, "_")
+    .replace(/^_+|_+$/g, "") || "prenotazione";
+  doc.save(`${nomeBase}_presidi_2027.pdf`);
 });
 
 // -------- STEP 2: conferma invio (salvataggio + email con PDF) --------
@@ -909,8 +978,7 @@ confirmBtn.addEventListener("click", async () => {
     // Viene convertito in base64 e inviato insieme ai dati: lo script
     // Google lo allega direttamente all'email senza ricostruirlo.
     const pdfDoc = generatePdf();
-    const safeName = (payload.cognome_nome || "prenotazione").replace(/[^a-z0-9]+/gi, "_");
-    payload.pdf_filename = `prenotazione_presidi_2026_${safeName}.pdf`;
+    payload.pdf_filename = `${nomeBase || "prenotazione"}_presidi_2027.pdf`;
     payload.pdf_base64 = pdfDoc.output("datauristring").split(",")[1];
 
     await fetch(GOOGLE_SCRIPT_URL, {
