@@ -184,34 +184,34 @@
     <div class="card">
       <h2>Censimento e Adesione</h2>
       <div class="field">
-        <label>Famiglie denunciate 2025 (arnie + sciami) <span class="req">*</span></label>
+        <label>Famiglie denunciate 2026 (arnie + sciami) <span class="req">*</span></label>
         <input type="number" min="0" step="1" name="famiglie" id="famiglie" required>
       </div>
       <div class="maxspesa">Spesa massima ammissibile (9,9&euro; per totale famiglie): <strong id="spesaMax">0,00 €</strong></div>
       <p class="hint" style="margin-top:12px;">I presidi non saranno prenotati a chi non ha pagato la quota associativa e non ha comunicato al Consorzio i dati del censimento.</p>
       <div class="field" style="margin-top:10px;">
-        <label>Ho gi&agrave; inviato al Consorzio il censimento 2025 a mezzo modulo internet (scadenza 20 novembre 2025) <span class="req">*</span></label>
-        <select name="censimento_2025" id="censimento2025" required>
+        <label>Ho gi&agrave; inviato al Consorzio il censimento 2026 a mezzo modulo internet (scadenza 20 novembre 2026) <span class="req">*</span></label>
+        <select name="censimento_2026" id="censimento2026" required>
           <option value="">Seleziona</option>
           <option value="SI">SI</option>
           <option value="NO">NO</option>
         </select>
       </div>
       <div class="field" id="censimentoFileWrap" style="display:none; margin-top:10px;">
-        <label>Carica il PDF o la foto (JPEG) del censimento 2025 <span class="req">*</span></label>
+        <label>Carica il PDF o la foto (JPEG) del censimento 2026 <span class="req">*</span></label>
         <input type="file" name="censimento_file" id="censimentoFile" accept=".pdf,application/pdf,image/jpeg,.jpg,.jpeg">
         <p class="hint">Formati accettati: PDF o JPEG, max 5 MB.</p>
       </div>
       <div class="field">
-        <label>Ho gi&agrave; inviato al Consorzio l'adesione 2025/2026 a mezzo modulo internet <span class="req">*</span></label>
-        <select name="adesione_2025_2026" id="adesione20252026" required>
+        <label>Ho gi&agrave; inviato al Consorzio l'adesione 2026/2027 a mezzo modulo internet <span class="req">*</span></label>
+        <select name="adesione_2026_2027" id="adesione20262027" required>
           <option value="">Seleziona</option>
           <option value="SI">SI</option>
           <option value="NO">NO</option>
         </select>
       </div>
       <div class="field" id="adesioneFileWrap" style="display:none; margin-top:10px;">
-        <label>Carica il PDF o la foto (JPEG) dell'adesione 2025/2026 <span class="req">*</span></label>
+        <label>Carica il PDF o la foto (JPEG) dell'adesione 2026/2027 <span class="req">*</span></label>
         <input type="file" name="adesione_file" id="adesioneFile" accept=".pdf,application/pdf,image/jpeg,.jpg,.jpeg">
         <p class="hint">Formati accettati: PDF o JPEG, max 5 MB.</p>
       </div>
@@ -448,8 +448,8 @@ function wireCondizionalFileUpload(selectId, wrapId, fileInputId){
   toggle();
 }
 
-wireCondizionalFileUpload("censimento2025", "censimentoFileWrap", "censimentoFile");
-wireCondizionalFileUpload("adesione20252026", "adesioneFileWrap", "adesioneFile");
+wireCondizionalFileUpload("censimento2026", "censimentoFileWrap", "censimentoFile");
+wireCondizionalFileUpload("adesione20262027", "adesioneFileWrap", "adesioneFile");
 
 function readFileAsBase64(file){
   return new Promise((resolve, reject) => {
@@ -628,10 +628,10 @@ function buildReview(){
   ).join("");
 
   const censimentoRows = [
-    ["Famiglie denunciate 2025", payload.famiglie],
+    ["Famiglie denunciate 2026", payload.famiglie],
     ["Spesa massima ammissibile (9,9€/famiglia)", fmt(parseFloat(payload.spesa_massima_ammissibile))],
-    ["Censimento 2025 inviato", payload.censimento_2025],
-    ["Adesione 2025/2026 inviata", payload.adesione_2025_2026]
+    ["Censimento 2026 inviato", payload.censimento_2026],
+    ["Adesione 2026/2027 inviata", payload.adesione_2026_2027]
   ];
   document.getElementById("reviewCensimento").innerHTML = censimentoRows.map(r =>
     `<div class="review-row"><span class="rlabel">${r[0]}</span><span class="rvalue">${escapeHtml(String(r[1] ?? "-"))}</span></div>`
@@ -750,10 +750,10 @@ function generatePdf(){
   y += 10;
 
   sectionTitle("Censimento e Adesione");
-  row("Famiglie denunciate 2025", payload.famiglie);
+  row("Famiglie denunciate 2026", payload.famiglie);
   row("Spesa massima ammissibile (9,9€/famiglia)", fmt(parseFloat(payload.spesa_massima_ammissibile)));
-  row("Censimento 2025 inviato", payload.censimento_2025);
-  row("Adesione 2025/2026 inviata", payload.adesione_2025_2026);
+  row("Censimento 2026 inviato", payload.censimento_2026);
+  row("Adesione 2026/2027 inviata", payload.adesione_2026_2027);
   y += 10;
 
   sectionTitle("Presidi Sanitari");
@@ -824,15 +824,15 @@ confirmBtn.addEventListener("click", async () => {
   // se NON è stato dichiarato l'invio tramite modulo internet (risposta
   // "NO"), il relativo allegato è obbligatorio come prova alternativa
   const censimentoFile = document.getElementById("censimentoFile").files[0];
-  if (payload.censimento_2025 === "NO" && !censimentoFile) {
+  if (payload.censimento_2026 === "NO" && !censimentoFile) {
     reviewMsg.className = "msg err";
-    reviewMsg.textContent = "Hai dichiarato di non aver ancora inviato il censimento 2025 tramite modulo internet: carica il PDF o la foto del censimento prima di confermare.";
+    reviewMsg.textContent = "Hai dichiarato di non aver ancora inviato il censimento 2026 tramite modulo internet: carica il PDF o la foto del censimento prima di confermare.";
     return;
   }
   const adesioneFile = document.getElementById("adesioneFile").files[0];
-  if (payload.adesione_2025_2026 === "NO" && !adesioneFile) {
+  if (payload.adesione_2026_2027 === "NO" && !adesioneFile) {
     reviewMsg.className = "msg err";
-    reviewMsg.textContent = "Hai dichiarato di non aver ancora inviato l'adesione 2025/2026 tramite modulo internet: carica il PDF o la foto dell'adesione prima di confermare.";
+    reviewMsg.textContent = "Hai dichiarato di non aver ancora inviato l'adesione 2026/2027 tramite modulo internet: carica il PDF o la foto dell'adesione prima di confermare.";
     return;
   }
 
