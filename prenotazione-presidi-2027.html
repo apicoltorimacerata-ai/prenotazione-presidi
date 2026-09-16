@@ -191,19 +191,29 @@
       <p class="hint" style="margin-top:12px;">I presidi non saranno prenotati a chi non ha pagato la quota associativa e non ha comunicato al Consorzio i dati del censimento.</p>
       <div class="field" style="margin-top:10px;">
         <label>Ho gi&agrave; inviato al Consorzio il censimento 2025 a mezzo modulo internet (scadenza 20 novembre 2025) <span class="req">*</span></label>
-        <select name="censimento_2025" required>
+        <select name="censimento_2025" id="censimento2025" required>
           <option value="">Seleziona</option>
           <option value="SI">SI</option>
           <option value="NO">NO</option>
         </select>
       </div>
+      <div class="field" id="censimentoFileWrap" style="display:none; margin-top:10px;">
+        <label>Carica il PDF o la foto (JPEG) del censimento inviato <span class="req">*</span></label>
+        <input type="file" name="censimento_file" id="censimentoFile" accept=".pdf,application/pdf,image/jpeg,.jpg,.jpeg">
+        <p class="hint">Formati accettati: PDF o JPEG, max 5 MB.</p>
+      </div>
       <div class="field">
         <label>Ho gi&agrave; inviato al Consorzio l'adesione 2025/2026 a mezzo modulo internet <span class="req">*</span></label>
-        <select name="adesione_2025_2026" required>
+        <select name="adesione_2025_2026" id="adesione20252026" required>
           <option value="">Seleziona</option>
           <option value="SI">SI</option>
           <option value="NO">NO</option>
         </select>
+      </div>
+      <div class="field" id="adesioneFileWrap" style="display:none; margin-top:10px;">
+        <label>Carica il PDF o la foto (JPEG) dell'adesione inviata <span class="req">*</span></label>
+        <input type="file" name="adesione_file" id="adesioneFile" accept=".pdf,application/pdf,image/jpeg,.jpg,.jpeg">
+        <p class="hint">Formati accettati: PDF o JPEG, max 5 MB.</p>
       </div>
     </div>
 
@@ -393,6 +403,62 @@ function updateBreakdownLabels(){
 loadListino();
 
 // ------------------------------------------------------------------
+// ALLEGATI CENSIMENTO / ADESIONE: se l'utente dichiara di aver già
+// inviato censimento e/o adesione, deve caricare il PDF o la foto (JPEG)
+// del rispettivo invio. I file vengono validati (formato, max 5 MB),
+// convertiti in base64 al momento della conferma e allegati alla stessa
+// email che porta anche il PDF di riepilogo.
+// ------------------------------------------------------------------
+const MAX_ALLEGATO_BYTES = 5 * 1024 * 1024;
+const TIPI_ALLEGATO_VALIDI = ["application/pdf", "image/jpeg", "image/jpg"];
+
+function isFileValido(file){
+  return TIPI_ALLEGATO_VALIDI.includes(file.type) || /\.(pdf|jpe?g)$/i.test(file.name);
+}
+
+function wireCondizionalFileUpload(selectId, wrapId, fileInputId){
+  const selectEl = document.getElementById(selectId);
+  const wrapEl = document.getElementById(wrapId);
+  const fileEl = document.getElementById(fileInputId);
+
+  function toggle(){
+    const show = selectEl.value === "SI";
+    wrapEl.style.display = show ? "block" : "none";
+    fileEl.required = show;
+    if (!show) fileEl.value = "";
+  }
+
+  fileEl.addEventListener("change", () => {
+    const file = fileEl.files[0];
+    if (!file) return;
+    if (!isFileValido(file)) {
+      alert("Il file deve essere in formato PDF o JPEG.");
+      fileEl.value = "";
+      return;
+    }
+    if (file.size > MAX_ALLEGATO_BYTES) {
+      alert("Il file supera i 5 MB consentiti.");
+      fileEl.value = "";
+    }
+  });
+
+  selectEl.addEventListener("change", toggle);
+  toggle();
+}
+
+wireCondizionalFileUpload("censimento2025", "censimentoFileWrap", "censimentoFile");
+wireCondizionalFileUpload("adesione20252026", "adesioneFileWrap", "adesioneFile");
+
+function readFileAsBase64(file){
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result).split(",")[1]);
+    reader.onerror = () => reject(new Error("Impossibile leggere il file " + file.name));
+    reader.readAsDataURL(file);
+  });
+}
+
+// ------------------------------------------------------------------
 // AUTOCOMPLETAMENTO CITTÀ: elenco ufficiale dei comuni italiani.
 // Alla selezione di un comune vengono compilate automaticamente
 // Provincia e (se univoco) il Codice Postale.
@@ -488,6 +554,11 @@ function collectPayload(){
   const data = new FormData(form);
   const payload = {};
   data.forEach((value, key) => { payload[key] = value; });
+  // i file (censimento_file / adesione_file) vengono letti e allegati a
+  // parte, in modo asincrono, subito prima dell'invio: qui li togliamo dal
+  // payload "sincrono" perché un oggetto File non si serializza in JSON.
+  delete payload.censimento_file;
+  delete payload.adesione_file;
 
   let subtotale = 0;
   PRODUCTS.forEach(p => {
@@ -748,10 +819,50 @@ confirmBtn.addEventListener("click", async () => {
     return;
   }
 
+  // se è stato dichiarato "SI" a censimento e/o adesione, il relativo
+  // allegato è obbligatorio
+  const censimentoFile = document.getElementById("censimentoFile").files[0];
+  if (payload.censimento_2025 === "SI" && !censimentoFile) {
+    reviewMsg.className = "msg err";
+    reviewMsg.textContent = "Hai dichiarato di aver già inviato il censimento 2025: carica il PDF o la foto del censimento prima di confermare.";
+    return;
+  }
+  const adesioneFile = document.getElementById("adesioneFile").files[0];
+  if (payload.adesione_2025_2026 === "SI" && !adesioneFile) {
+    reviewMsg.className = "msg err";
+    reviewMsg.textContent = "Hai dichiarato di aver già inviato l'adesione 2025/2026: carica il PDF o la foto dell'adesione prima di confermare.";
+    return;
+  }
+
   confirmBtn.disabled = true;
   confirmBtn.textContent = "Invio in corso...";
 
   try {
+    // Nome file richiesto: codice anagrafe apistica + cognome/nome + tipo
+    // documento (censimento/adesione), con l'estensione originale.
+    const nomeBase = [payload.codice_anagrafe, payload.cognome_nome]
+      .filter(Boolean)
+      .join("_")
+      .replace(/[^a-z0-9]+/gi, "_")
+      .replace(/^_+|_+$/g, "");
+
+    function estensione(file){
+      const m = /\.([a-z0-9]+)$/i.exec(file.name);
+      if (m) return m[1].toLowerCase();
+      return file.type === "application/pdf" ? "pdf" : "jpg";
+    }
+
+    if (censimentoFile) {
+      payload.censimento_file_base64 = await readFileAsBase64(censimentoFile);
+      payload.censimento_file_name = `${nomeBase}_censimento.${estensione(censimentoFile)}`;
+      payload.censimento_file_type = censimentoFile.type || (/\.pdf$/i.test(censimentoFile.name) ? "application/pdf" : "image/jpeg");
+    }
+    if (adesioneFile) {
+      payload.adesione_file_base64 = await readFileAsBase64(adesioneFile);
+      payload.adesione_file_name = `${nomeBase}_adesione.${estensione(adesioneFile)}`;
+      payload.adesione_file_type = adesioneFile.type || (/\.pdf$/i.test(adesioneFile.name) ? "application/pdf" : "image/jpeg");
+    }
+
     // Il PDF inviato via email è generato qui nel browser con la STESSA
     // funzione generatePdf() usata per il pulsante di download, così i due
     // PDF (quello scaricato e quello allegato all'email) sono identici.
@@ -780,6 +891,8 @@ confirmBtn.addEventListener("click", async () => {
       form.reset();
       recalc();
       document.getElementById("spesaMax").textContent = fmt(0);
+      document.getElementById("censimentoFileWrap").style.display = "none";
+      document.getElementById("adesioneFileWrap").style.display = "none";
     }, 300);
 
   } catch (err) {
