@@ -153,7 +153,8 @@
       <div class="row2">
         <div class="field">
           <label>Codice Anagrafe Apistica <span class="req">*</span></label>
-          <input type="text" name="codice_anagrafe" required placeholder="esempio 034AN318">
+          <input type="text" name="codice_anagrafe" required placeholder="esempio 034AN318" maxlength="8">
+          <p class="hint">8 caratteri: 3 numeri, 2 lettere, 3 numeri (es. 034AN318). Se le lettere sono "RM", il carattere successivo può essere anche una lettera (es. 034RMA18).</p>
         </div>
         <div class="field">
           <label>Codice Fiscale / P.IVA <span class="req">*</span></label>
@@ -375,7 +376,7 @@ async function loadListino(){
       });
     }
 
-    listinoStatus.textContent = "Listino aggiornato al 16/09/2026";
+    listinoStatus.textContent = "Listino caricato ok.";
     listinoStatus.style.color = "";
   } catch (err) {
     PRODUCTS = DEFAULT_PRODUCTS;
@@ -550,6 +551,43 @@ const form = document.getElementById("presidiForm");
 const formMsg = document.getElementById("formMsg");
 const reviewMsg = document.getElementById("reviewMsg");
 const reviewSection = document.getElementById("reviewSection");
+
+// ------------------------------------------------------------------
+// MAIUSCOLO AUTOMATICO: tutti i campi di testo/email digitati vengono
+// convertiti in maiuscolo mentre l'utente scrive (mantenendo la posizione
+// del cursore), così i dati salvati sono sempre in maiuscolo.
+// ------------------------------------------------------------------
+form.querySelectorAll('input[type="text"], input[type="email"]').forEach(el => {
+  el.addEventListener("input", () => {
+    const pos = el.selectionStart;
+    el.value = el.value.toUpperCase();
+    if (pos !== null) el.setSelectionRange(pos, pos);
+  });
+});
+
+// ------------------------------------------------------------------
+// VALIDAZIONE CODICE ANAGRAFE APISTICA: 8 caratteri, normalmente
+// 3 numeri + 2 lettere + 3 numeri (es. 034AN318). Eccezione: se le
+// lettere in posizione 4-5 sono "RM", il carattere in posizione 6 può
+// essere anche una lettera (non solo un numero), seguito comunque da
+// 2 numeri in posizione 7-8 (es. 034RMA18 oppure 034RM118).
+// ------------------------------------------------------------------
+const codiceAnagrafeEl = document.querySelector('input[name="codice_anagrafe"]');
+const CODICE_ANAGRAFE_REGEX = /^\d{3}(?:RM[A-Z0-9]\d{2}|[A-Z]{2}\d{3})$/;
+
+function validaCodiceAnagrafe(){
+  const v = codiceAnagrafeEl.value.trim();
+  if (v && !CODICE_ANAGRAFE_REGEX.test(v)) {
+    codiceAnagrafeEl.setCustomValidity(
+      "Formato non valido. Deve essere di 8 caratteri: 3 numeri, 2 lettere, 3 numeri (es. 034AN318). " +
+      "Se le lettere in posizione 4-5 sono \"RM\", il carattere successivo può essere anche una lettera, seguito da 2 numeri (es. 034RMA18)."
+    );
+  } else {
+    codiceAnagrafeEl.setCustomValidity("");
+  }
+}
+codiceAnagrafeEl.addEventListener("input", validaCodiceAnagrafe);
+codiceAnagrafeEl.addEventListener("blur", validaCodiceAnagrafe);
 
 // -------- raccolta dati in un unico oggetto --------
 function collectPayload(){
