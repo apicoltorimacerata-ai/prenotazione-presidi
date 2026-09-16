@@ -198,7 +198,7 @@
         </select>
       </div>
       <div class="field" id="censimentoFileWrap" style="display:none; margin-top:10px;">
-        <label>Carica il PDF o la foto (JPEG) del censimento inviato <span class="req">*</span></label>
+        <label>Carica il PDF o la foto (JPEG) del censimento 2025 <span class="req">*</span></label>
         <input type="file" name="censimento_file" id="censimentoFile" accept=".pdf,application/pdf,image/jpeg,.jpg,.jpeg">
         <p class="hint">Formati accettati: PDF o JPEG, max 5 MB.</p>
       </div>
@@ -211,7 +211,7 @@
         </select>
       </div>
       <div class="field" id="adesioneFileWrap" style="display:none; margin-top:10px;">
-        <label>Carica il PDF o la foto (JPEG) dell'adesione inviata <span class="req">*</span></label>
+        <label>Carica il PDF o la foto (JPEG) dell'adesione 2025/2026 <span class="req">*</span></label>
         <input type="file" name="adesione_file" id="adesioneFile" accept=".pdf,application/pdf,image/jpeg,.jpg,.jpeg">
         <p class="hint">Formati accettati: PDF o JPEG, max 5 MB.</p>
       </div>
@@ -422,7 +422,9 @@ function wireCondizionalFileUpload(selectId, wrapId, fileInputId){
   const fileEl = document.getElementById(fileInputId);
 
   function toggle(){
-    const show = selectEl.value === "SI";
+    // Se NON è già stato inviato tramite modulo internet (risposta "NO"),
+    // va caricato qui il PDF/JPEG come prova alternativa.
+    const show = selectEl.value === "NO";
     wrapEl.style.display = show ? "block" : "none";
     fileEl.required = show;
     if (!show) fileEl.value = "";
@@ -819,18 +821,18 @@ confirmBtn.addEventListener("click", async () => {
     return;
   }
 
-  // se è stato dichiarato "SI" a censimento e/o adesione, il relativo
-  // allegato è obbligatorio
+  // se NON è stato dichiarato l'invio tramite modulo internet (risposta
+  // "NO"), il relativo allegato è obbligatorio come prova alternativa
   const censimentoFile = document.getElementById("censimentoFile").files[0];
-  if (payload.censimento_2025 === "SI" && !censimentoFile) {
+  if (payload.censimento_2025 === "NO" && !censimentoFile) {
     reviewMsg.className = "msg err";
-    reviewMsg.textContent = "Hai dichiarato di aver già inviato il censimento 2025: carica il PDF o la foto del censimento prima di confermare.";
+    reviewMsg.textContent = "Hai dichiarato di non aver ancora inviato il censimento 2025 tramite modulo internet: carica il PDF o la foto del censimento prima di confermare.";
     return;
   }
   const adesioneFile = document.getElementById("adesioneFile").files[0];
-  if (payload.adesione_2025_2026 === "SI" && !adesioneFile) {
+  if (payload.adesione_2025_2026 === "NO" && !adesioneFile) {
     reviewMsg.className = "msg err";
-    reviewMsg.textContent = "Hai dichiarato di aver già inviato l'adesione 2025/2026: carica il PDF o la foto dell'adesione prima di confermare.";
+    reviewMsg.textContent = "Hai dichiarato di non aver ancora inviato l'adesione 2025/2026 tramite modulo internet: carica il PDF o la foto dell'adesione prima di confermare.";
     return;
   }
 
