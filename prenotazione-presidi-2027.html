@@ -725,8 +725,16 @@ function generatePdf(){
   const payload = collectPayload();
   const { jsPDF } = window.jspdf;
   const doc = new jsPDF({ unit: "pt", format: "a4" });
-  const marginX = 40;
-  let y = 50;
+  // Margini pagina: 7 mm su tutti e quattro i lati (1 mm = 2.834645669 pt)
+  const MARGIN_MM = 7;
+  const marginX = MARGIN_MM * 2.834645669; // sinistra (~19.84pt)
+  const marginTop = MARGIN_MM * 2.834645669;
+  const marginBottom = MARGIN_MM * 2.834645669;
+  const pageHeight = doc.internal.pageSize.getHeight();
+  const marginRight = doc.internal.pageSize.getWidth() - marginX; // bordo destro utile
+  const textWidth = marginRight - marginX; // larghezza disponibile per il testo che va a capo
+  const bottomLimit = pageHeight - marginBottom; // oltre questo punto si va a nuova pagina
+  let y = marginTop + 10;
 
   doc.setFont("helvetica", "bold");
   doc.setFontSize(16);
@@ -746,14 +754,14 @@ function generatePdf(){
     doc.setTextColor(0, 0, 0);
     y += 6;
     doc.setDrawColor(23, 138, 61);
-    doc.line(marginX, y, 555, y);
+    doc.line(marginX, y, marginRight, y);
     y += 16;
     doc.setFont("helvetica", "normal");
     doc.setFontSize(10);
   }
 
   function row(label, value){
-    if (y > 780) { doc.addPage(); y = 50; }
+    if (y > bottomLimit) { doc.addPage(); y = marginTop + 10; }
     doc.setFont("helvetica", "bold");
     doc.text(String(label), marginX, y);
     doc.setFont("helvetica", "normal");
@@ -768,7 +776,7 @@ function generatePdf(){
   const colImporto = marginX + 440;
 
   function rowPresidioHeader(){
-    if (y > 780) { doc.addPage(); y = 50; }
+    if (y > bottomLimit) { doc.addPage(); y = marginTop + 10; }
     doc.setFont("helvetica", "bold");
     doc.setFontSize(9);
     doc.text("Presidio", colPresidio, y);
@@ -778,13 +786,13 @@ function generatePdf(){
     doc.text("Importo", colImporto, y);
     y += 14;
     doc.setDrawColor(200, 200, 200);
-    doc.line(marginX, y, 555, y);
+    doc.line(marginX, y, marginRight, y);
     y += 12;
     doc.setFontSize(10);
   }
 
   function rowPresidio(nome, qty, prezzoUnitario, importo){
-    if (y > 780) { doc.addPage(); y = 50; }
+    if (y > bottomLimit) { doc.addPage(); y = marginTop + 10; }
     doc.setFont("helvetica", "normal");
     doc.text(nome, colPresidio, y, { maxWidth: 315 });
     doc.text(String(qty), colQty, y);
@@ -837,9 +845,9 @@ function generatePdf(){
   doc.setTextColor(120, 120, 120);
   doc.splitTextToSize(
     'CONTRIBUTO EROGATO AI SENSI DEL BANDO REGIONALE di accesso ai benefici previsti dal "Sottoprogramma apistico Regione MARCHE 2023/2027". Annata apistica 2026 - Delibera di Giunta Regionale n. 1366 del 11/08/2025 - decreto dirigente direzione agricoltura n 587 del 10/09/2025 - AZIONE B1.1.',
-    515
+    textWidth
   ).forEach(line => {
-    if (y > 780) { doc.addPage(); y = 50; }
+    if (y > bottomLimit) { doc.addPage(); y = marginTop + 10; }
     doc.text(line, marginX, y);
     y += 9;
   });
@@ -856,7 +864,7 @@ function generatePdf(){
   y += 25;
 
   // Promemoria pagamento (totale in grassetto) e istruzioni
-  if (y > 760) { doc.addPage(); y = 50; }
+  if (y > bottomLimit - 20) { doc.addPage(); y = marginTop + 10; }
   doc.setFont("helvetica", "normal");
   doc.setFontSize(10);
   doc.setTextColor(0, 0, 0);
@@ -877,8 +885,8 @@ function generatePdf(){
     "La contabile del bonifico deve essere inviata via internet alla segreteria usando l'applicazione."
   ];
   pagamentoLinee.forEach(linea => {
-    doc.splitTextToSize(linea, 515).forEach(l => {
-      if (y > 780) { doc.addPage(); y = 50; }
+    doc.splitTextToSize(linea, textWidth).forEach(l => {
+      if (y > bottomLimit) { doc.addPage(); y = marginTop + 10; }
       doc.text(l, marginX, y);
       y += 13;
     });
@@ -888,7 +896,7 @@ function generatePdf(){
   doc.setFont("helvetica", "normal");
   doc.setFontSize(8);
   doc.setTextColor(120, 120, 120);
-  if (y > 780) { doc.addPage(); y = 50; }
+  if (y > bottomLimit) { doc.addPage(); y = marginTop + 10; }
   doc.text(`Documento generato il ${new Date().toLocaleString("it-IT")}`, marginX, y);
 
   return doc;
