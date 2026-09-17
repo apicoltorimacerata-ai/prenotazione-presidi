@@ -730,7 +730,8 @@ function generatePdf(){
 
   doc.setFont("helvetica", "bold");
   doc.setFontSize(16);
-  doc.text("Prenotazione Presidi 2026", marginX, y);
+  const pageWidth = doc.internal.pageSize.getWidth();
+  doc.text("Prenotazione Presidi 2027", pageWidth / 2, y, { align: "center" });
   y += 18;
   doc.setFontSize(10);
   doc.setFont("helvetica", "normal");
