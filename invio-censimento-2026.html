@@ -1,0 +1,240 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Invio Censimento 2026 - Apicoltori MC</title>
+<style>
+  :root{
+    --green:#178a3d; --green-dark:#106b2e; --bg:#f4f6f5; --card:#ffffff;
+    --border:#dfe3e1; --text:#22292a; --muted:#6b7674;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0;
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    background:var(--bg); color:var(--text); padding:24px 16px 80px;
+  }
+  .wrap{max-width:760px;margin:0 auto;}
+  h1{font-size:1.5rem;margin:0 0 4px;}
+  .subtitle{color:var(--muted);margin:0 0 24px;font-size:.95rem;}
+  .card{background:var(--card);border:1px solid var(--border);border-radius:10px;padding:20px;margin-bottom:16px;}
+  .card h2{
+    font-size:1rem;text-transform:uppercase;letter-spacing:.02em;margin:0 0 16px;
+    color:var(--green-dark);border-bottom:2px solid var(--green);padding-bottom:8px;
+  }
+  .field{margin-bottom:14px;}
+  label{display:block;font-weight:600;font-size:.88rem;margin-bottom:4px;}
+  label .req{color:#c0392b;}
+  .hint{font-size:.78rem;color:var(--muted);margin-top:3px;}
+  input[type=text], input[type=email], select, textarea{
+    width:100%;padding:10px 12px;border:1px solid var(--border);border-radius:6px;
+    font-size:.95rem;background:#fff;color:var(--text);font-family:inherit;
+  }
+  textarea{min-height:90px;resize:vertical;}
+  input:focus, select:focus, textarea:focus{outline:2px solid var(--green);border-color:var(--green);}
+  input[type=file]{font-size:.9rem;max-width:100%;}
+  .row2{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
+  @media (max-width:520px){ .row2{grid-template-columns:1fr;} }
+  .radio-group label{font-weight:400;display:flex;align-items:center;gap:8px;padding:6px 0;font-size:.95rem;}
+  .radio-group input{width:18px;height:18px;accent-color:var(--green);}
+  button{
+    width:100%;background:var(--green);color:#fff;border:none;padding:14px;
+    font-size:1rem;font-weight:700;border-radius:8px;cursor:pointer;
+  }
+  button:hover{background:var(--green-dark);}
+  button:disabled{background:#9db6a5;cursor:not-allowed;}
+  .msg{margin-top:14px;padding:12px 14px;border-radius:8px;font-size:.9rem;display:none;}
+  .msg.ok{background:#e6f4ea;color:#1e7b34;border:1px solid #b6e0c2;display:block;}
+  .msg.err{background:#fdecea;color:#b3261e;border:1px solid #f4c7c3;display:block;}
+  .note{font-size:.8rem;color:var(--muted);margin-top:20px;line-height:1.4;}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Invio Censimento 2026</h1>
+  <p class="subtitle">Consorzio Apistico Provinciale di Macerata &mdash; invia al Consorzio il censimento 2026</p>
+
+  <form id="moduloForm" novalidate>
+    <div class="card">
+      <h2>Dati Anagrafici</h2>
+      <div class="field">
+        <label>Cognome Nome / Denominazione <span class="req">*</span></label>
+        <input type="text" name="cognome_nome" required placeholder="Cognome Nome (persone fisiche) o Ragione Sociale (società)">
+      </div>
+      <div class="row2">
+        <div class="field">
+          <label>Email <span class="req">*</span></label>
+          <input type="email" name="email" required>
+        </div>
+        <div class="field">
+          <label>Numero di Telefono <span class="req">*</span></label>
+          <div class="row2" style="gap:8px;grid-template-columns:80px 1fr;">
+            <input type="text" name="prefisso" placeholder="Prefisso" value="+39" required>
+            <input type="text" name="telefono" placeholder="Numero" inputmode="tel" required>
+          </div>
+        </div>
+      </div>
+      <div class="field">
+        <label>Codice Anagrafe Apistica <span class="req">*</span></label>
+        <input type="text" name="codice_anagrafe" required placeholder="esempio 034AN318" maxlength="8" style="text-transform:uppercase;">
+        <p class="hint">8 caratteri: 3 numeri, 2 lettere, 3 numeri (es. 034AN318). Se le lettere sono "RM", il carattere successivo può essere anche una lettera (es. 034RMA18).</p>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>Censimento 2026</h2>
+      <div class="field">
+        <label>Delega censimento al Consorzio Apistico <span class="req">*</span></label>
+        <div class="radio-group">
+          <label><input type="radio" name="delega_censimento" value="SI" required> SI</label>
+          <label><input type="radio" name="delega_censimento" value="NO"> NO</label>
+        </div>
+      </div>
+      <div class="field">
+        <label>Caricamento censimento 2026</label>
+        <input type="file" id="file_censimento" data-label="censimento" accept=".pdf,application/pdf,image/jpeg,.jpg,.jpeg">
+        <p class="hint">Il file può essere PDF o foto (JPEG) in bianco e nero, max 5 MB.</p>
+      </div>
+      <div class="field">
+        <label>Eventuali comunicazioni</label>
+        <textarea name="comunicazioni"></textarea>
+      </div>
+    </div>
+
+    <button type="submit" id="sendBtn">Invia censimento</button>
+    <div class="msg" id="formMsg"></div>
+    <p class="note">
+      Dopo l'invio riceverai un'email di conferma all'indirizzo indicato.
+    </p>
+  </form>
+</div>
+
+<script>
+// ------------------------------------------------------------------
+// CONFIGURAZIONE: incolla qui l'URL del Web App di Google Apps Script
+// (lo stesso URL per entrambi i moduli: censimento e documenti)
+// ------------------------------------------------------------------
+const GOOGLE_SCRIPT_URL = "INCOLLA_QUI_URL_WEB_APP";
+const TIPO_MODULO = "censimento";
+// file: [id input, obbligatorio?]
+const FILES = [["file_censimento", false]];
+</script>
+<script>
+// ------------------------------------------------------------------
+// Codice comune ai moduli del Consorzio (censimento, documenti).
+// Ogni pagina definisce prima di caricare questo file:
+//   GOOGLE_SCRIPT_URL, TIPO_MODULO, FILES = [[idInput, obbligatorio], ...]
+// ------------------------------------------------------------------
+(function(){
+  const MAX_ALLEGATO_BYTES = 5 * 1024 * 1024;
+  const TIPI_VALIDI = ["application/pdf", "image/jpeg", "image/jpg"];
+  const CODICE_ANAGRAFE_REGEX = /^\d{3}(?:RM[A-Z0-9]\d{2}|[A-Z]{2}\d{3})$/;
+
+  const form = document.getElementById("moduloForm");
+  const sendBtn = document.getElementById("sendBtn");
+  const msg = document.getElementById("formMsg");
+  const sendLabel = sendBtn.textContent;
+
+  // ---------- codice anagrafe apistica ----------
+  const codiceEl = form.querySelector('input[name="codice_anagrafe"]');
+  function validaCodice(){
+    const v = codiceEl.value.trim().toUpperCase();
+    codiceEl.setCustomValidity(v && !CODICE_ANAGRAFE_REGEX.test(v)
+      ? "Formato non valido: 8 caratteri, 3 numeri + 2 lettere + 3 numeri (es. 034AN318). " +
+        "Con \"RM\" il carattere successivo può essere anche una lettera (es. 034RMA18)."
+      : "");
+  }
+  codiceEl.addEventListener("input", validaCodice);
+  codiceEl.addEventListener("blur", validaCodice);
+
+  // ---------- allegati ----------
+  function isFileValido(file){
+    return TIPI_VALIDI.includes(file.type) || /\.(pdf|jpe?g)$/i.test(file.name);
+  }
+  FILES.forEach(([id, obbligatorio]) => {
+    const el = document.getElementById(id);
+    el.required = obbligatorio;
+    el.addEventListener("change", () => {
+      const f = el.files[0];
+      if (!f) return;
+      if (!isFileValido(f)) { alert("Il file deve essere in formato PDF o JPEG."); el.value = ""; return; }
+      if (f.size > MAX_ALLEGATO_BYTES) { alert("Il file supera i 5 MB consentiti."); el.value = ""; }
+    });
+  });
+
+  function readFileAsBase64(file){
+    return new Promise((resolve, reject) => {
+      const r = new FileReader();
+      r.onload = () => resolve(String(r.result).split(",")[1]);
+      r.onerror = () => reject(new Error("Impossibile leggere il file " + file.name));
+      r.readAsDataURL(file);
+    });
+  }
+  function estensione(file){
+    const m = /\.([a-z0-9]+)$/i.exec(file.name);
+    if (m) return m[1].toLowerCase();
+    return file.type === "application/pdf" ? "pdf" : "jpg";
+  }
+
+  // ---------- invio ----------
+  form.addEventListener("submit", async (e) => {
+    e.preventDefault();
+    msg.className = "msg"; msg.textContent = "";
+    codiceEl.value = codiceEl.value.trim().toUpperCase();
+    validaCodice();
+    if (!form.reportValidity()) return;
+
+    if (!GOOGLE_SCRIPT_URL || GOOGLE_SCRIPT_URL.indexOf("script.google.com") === -1) {
+      msg.className = "msg err";
+      msg.textContent = "Modulo non ancora configurato (manca l'URL dello script Google).";
+      return;
+    }
+
+    const payload = { tipo_modulo: TIPO_MODULO, timestamp: new Date().toISOString(), allegati: [] };
+    new FormData(form).forEach((v, k) => { if (!(v instanceof File)) payload[k] = String(v).trim(); });
+
+    // Nome file: codice anagrafe + cognome/nome + tipo documento
+    const nomeBase = [payload.codice_anagrafe, payload.cognome_nome]
+      .filter(Boolean).join("_")
+      .replace(/[^a-z0-9]+/gi, "_").replace(/^_+|_+$/g, "");
+
+    sendBtn.disabled = true;
+    sendBtn.textContent = "Invio in corso...";
+    try {
+      for (const [id] of FILES) {
+        const el = document.getElementById(id);
+        const f = el.files[0];
+        if (!f) continue;
+        payload.allegati.push({
+          campo: el.dataset.label,
+          nome: `${nomeBase}_${el.dataset.label}.${estensione(f)}`,
+          tipo: f.type || (/\.pdf$/i.test(f.name) ? "application/pdf" : "image/jpeg"),
+          base64: await readFileAsBase64(f)
+        });
+      }
+
+      await fetch(GOOGLE_SCRIPT_URL, {
+        method: "POST",
+        mode: "no-cors",
+        headers: { "Content-Type": "text/plain;charset=utf-8" },
+        body: JSON.stringify(payload)
+      });
+
+      // in modalità no-cors la risposta non è leggibile: consideriamo l'invio riuscito
+      msg.className = "msg ok";
+      msg.textContent = "Invio completato. Riceverai un'email di conferma all'indirizzo indicato.";
+      sendBtn.textContent = "Inviato";
+      form.reset();
+      setTimeout(() => { sendBtn.disabled = false; sendBtn.textContent = sendLabel; }, 4000);
+    } catch (err) {
+      msg.className = "msg err";
+      msg.textContent = "Si è verificato un errore durante l'invio. Riprova o contatta il Consorzio.";
+      sendBtn.disabled = false;
+      sendBtn.textContent = sendLabel;
+    }
+  });
+})();
+</script>
+</body>
+</html>
