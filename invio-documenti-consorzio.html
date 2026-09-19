@@ -189,7 +189,7 @@ const FILES = [["file_adesione", false], ["file_bonifico", true]];
     el.addEventListener("change", () => {
       const f = el.files[0];
       if (f && !isFileValido(f)) { alert("Il file deve essere in formato PDF o JPEG."); el.value = ""; }
-      else if (f && f.size > MAX_ALLEGATO_BYTES) { alert("Il file supera i 5 MB consentiti."); el.value = ""; }
+            else if (f && f.size > (isFoto(f) ? 20 : 5) * 1024 * 1024) { alert("File troppo grande: massimo 5 MB per i PDF, 20 MB per le foto."); el.value = ""; }
       aggiornaBtn();
     });
   });
@@ -206,6 +206,25 @@ const FILES = [["file_adesione", false], ["file_bonifico", true]];
     const m = /\.([a-z0-9]+)$/i.exec(file.name);
     if (m) return m[1].toLowerCase();
     return file.type === "application/pdf" ? "pdf" : "jpg";
+  }
+    function isFoto(file){
+    return /^image\/jpe?g$/i.test(file.type) || /\.jpe?g$/i.test(file.name);
+  }
+  // Riduce le foto a max 2000 px sul lato lungo (JPEG qualità 0,8) per caricarle più in fretta.
+  // Se la riduzione non riesce o non conviene, invia la foto originale.
+  async function riduciFoto(file){
+    try {
+      const img = await createImageBitmap(file);
+      const scala = Math.min(1, 2000 / Math.max(img.width, img.height));
+      const canvas = document.createElement("canvas");
+      canvas.width = Math.round(img.width * scala);
+      canvas.height = Math.round(img.height * scala);
+      canvas.getContext("2d").drawImage(img, 0, 0, canvas.width, canvas.height);
+      const blob = await new Promise(r => canvas.toBlob(r, "image/jpeg", 0.8));
+      return readFileAsBase64(blob && blob.size < file.size ? blob : file);
+    } catch (e) {
+      return readFileAsBase64(file);
+    }
   }
 
   // ---------- invio ----------
@@ -241,7 +260,7 @@ const FILES = [["file_adesione", false], ["file_bonifico", true]];
           campo: el.dataset.label,
           nome: `${nomeBase}_${el.dataset.label}.${estensione(f)}`,
           tipo: f.type || (/\.pdf$/i.test(f.name) ? "application/pdf" : "image/jpeg"),
-          base64: await readFileAsBase64(f)
+          base64: isFoto(f) ? await riduciFoto(f) : await readFileAsBase64(f)
         });
       }
 
