@@ -48,6 +48,13 @@
   .msg.ok{background:#e6f4ea;color:#1e7b34;border:1px solid #b6e0c2;display:block;}
   .msg.err{background:#fdecea;color:#b3261e;border:1px solid #f4c7c3;display:block;}
   .note{font-size:.8rem;color:var(--muted);margin-top:20px;line-height:1.4;}
+  .file-row{display:flex;align-items:center;gap:10px;flex-wrap:wrap;}
+  .file-row input[type=file]{flex:1;min-width:0;}
+  button.btn-rimuovi{
+    width:auto;padding:6px 12px;font-size:.85rem;font-weight:600;
+    background:#fff;color:#b3261e;border:1.5px solid #e3a19c;border-radius:6px;
+  }
+  button.btn-rimuovi:hover{background:#fdecea;}
 </style>
 </head>
 <body>
@@ -163,11 +170,27 @@ const FILES = [["file_adesione", false], ["file_bonifico", true]];
   FILES.forEach(([id, obbligatorio]) => {
     const el = document.getElementById(id);
     el.required = obbligatorio;
+
+    // pulsante "Rimuovi file" accanto al campo, visibile solo se c'è un file scelto
+    const riga = document.createElement("div");
+    riga.className = "file-row";
+    el.parentNode.insertBefore(riga, el);
+    riga.appendChild(el);
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "btn-rimuovi";
+    btn.textContent = "✕ Rimuovi file";
+    btn.style.display = "none";
+    riga.appendChild(btn);
+    const aggiornaBtn = () => { btn.style.display = el.files.length ? "inline-block" : "none"; };
+    btn.addEventListener("click", () => { el.value = ""; aggiornaBtn(); });
+    form.addEventListener("reset", () => setTimeout(aggiornaBtn, 0));
+
     el.addEventListener("change", () => {
       const f = el.files[0];
-      if (!f) return;
-      if (!isFileValido(f)) { alert("Il file deve essere in formato PDF o JPEG."); el.value = ""; return; }
-      if (f.size > MAX_ALLEGATO_BYTES) { alert("Il file supera i 5 MB consentiti."); el.value = ""; }
+      if (f && !isFileValido(f)) { alert("Il file deve essere in formato PDF o JPEG."); el.value = ""; }
+      else if (f && f.size > MAX_ALLEGATO_BYTES) { alert("Il file supera i 5 MB consentiti."); el.value = ""; }
+      aggiornaBtn();
     });
   });
 
