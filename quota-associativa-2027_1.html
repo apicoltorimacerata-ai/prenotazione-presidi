@@ -1,0 +1,507 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Calcolo Quota Associativa - Apicoltori MC</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<style>
+  :root{
+    --green:#178a3d; --green-dark:#106b2e; --bg:#f4f6f5; --card:#ffffff;
+    --border:#dfe3e1; --text:#22292a; --muted:#6b7674;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0;
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    background:var(--bg); color:var(--text); padding:24px 16px 80px;
+  }
+  .wrap{max-width:760px;margin:0 auto;}
+  h1{font-size:1.5rem;margin:0 0 4px;}
+  .subtitle{color:var(--muted);margin:0 0 24px;font-size:.95rem;}
+  .card{background:var(--card);border:1px solid var(--border);border-radius:10px;padding:20px;margin-bottom:16px;}
+  .card h2{
+    font-size:1rem;text-transform:uppercase;letter-spacing:.02em;margin:0 0 16px;
+    color:var(--green-dark);border-bottom:2px solid var(--green);padding-bottom:8px;
+  }
+  .field{margin-bottom:14px;}
+  label{display:block;font-weight:600;font-size:.88rem;margin-bottom:4px;}
+  label .req{color:#c0392b;}
+  .hint{font-size:.78rem;color:var(--muted);margin-top:3px;}
+  input[type=text], input[type=email], input[type=number], select{
+    width:100%;padding:10px 12px;border:1px solid var(--border);border-radius:6px;
+    font-size:.95rem;background:#fff;color:var(--text);font-family:inherit;
+  }
+  input:focus, select:focus{outline:2px solid var(--green);border-color:var(--green);}
+  .row2{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
+  .row3{display:grid;grid-template-columns:2fr 1fr 1fr;gap:12px;}
+  @media (max-width:520px){ .row2,.row3{grid-template-columns:1fr;} }
+  .radio-group label{font-weight:400;display:flex;align-items:center;gap:8px;padding:6px 0;font-size:.95rem;}
+  .radio-group input{width:18px;height:18px;accent-color:var(--green);}
+  table.fasce{width:100%;border-collapse:collapse;font-size:.88rem;margin:4px 0 6px;}
+  table.fasce th, table.fasce td{padding:6px 8px;border-bottom:1px solid var(--border);text-align:left;}
+  table.fasce th{color:var(--muted);font-weight:600;font-size:.8rem;text-transform:uppercase;}
+  table.fasce td:last-child, table.fasce th:last-child{text-align:right;}
+  table.fasce tr.attiva td{background:#e6f4ea;font-weight:700;color:var(--green-dark);}
+  .grandtotal{
+    display:flex;justify-content:space-between;align-items:center;
+    margin-top:12px;padding:14px 16px;background:var(--green);color:#fff;
+    border-radius:8px;font-weight:700;font-size:1.1rem;
+  }
+  .maxspesa{background:#f0f7f2;border:1px solid #cfe6d6;border-radius:8px;padding:12px 14px;font-size:.9rem;line-height:1.5;}
+  button{
+    width:100%;background:var(--green);color:#fff;border:none;padding:14px;
+    font-size:1rem;font-weight:700;border-radius:8px;cursor:pointer;
+  }
+  button:hover{background:var(--green-dark);}
+  button:disabled{background:#9db6a5;cursor:not-allowed;}
+  button.secondary{background:#fff;color:var(--green-dark);border:1.5px solid var(--green);}
+  button.secondary:hover{background:#eef4f0;}
+  .btnrow{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:10px;}
+  @media (max-width:520px){ .btnrow{grid-template-columns:1fr;} }
+  .msg{margin-top:14px;padding:12px 14px;border-radius:8px;font-size:.9rem;display:none;}
+  .msg.ok{background:#e6f4ea;color:#1e7b34;border:1px solid #b6e0c2;display:block;}
+  .msg.err{background:#fdecea;color:#b3261e;border:1px solid #f4c7c3;display:block;}
+  .note{font-size:.8rem;color:var(--muted);margin-top:20px;line-height:1.4;}
+  #reviewSection{display:none;}
+  .review-row{display:flex;justify-content:space-between;gap:12px;padding:7px 0;border-bottom:1px solid var(--border);font-size:.9rem;}
+  .review-row:last-child{border-bottom:none;}
+  .review-row .rlabel{color:var(--muted);}
+  .review-row .rvalue{font-weight:600;text-align:right;word-break:break-word;}
+  .badge-step{display:inline-block;background:var(--green);color:#fff;font-size:.75rem;padding:3px 10px;border-radius:20px;margin-bottom:10px;font-weight:700;}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Calcolo Quota Associativa</h1>
+  <p class="subtitle">Consorzio Apistico Provinciale di Macerata &mdash; indica le arnie da denunciare nel censimento 2026 per calcolare la quota associativa</p>
+
+  <!-- ============ STEP 1: MODULO ============ -->
+  <form id="quotaForm">
+
+    <div class="card">
+      <h2>Dati Anagrafici</h2>
+      <div class="field">
+        <label>Cognome Nome / Denominazione <span class="req">*</span></label>
+        <input type="text" name="cognome_nome" required placeholder="Cognome Nome (persone fisiche) o Ragione Sociale (società)">
+      </div>
+      <div class="row2">
+        <div class="field">
+          <label>Email <span class="req">*</span></label>
+          <input type="email" name="email" required>
+        </div>
+        <div class="field">
+          <label>Numero di Telefono <span class="req">*</span></label>
+          <div class="row2" style="gap:8px;grid-template-columns:80px 1fr;">
+            <input type="text" name="prefisso" placeholder="Prefisso" required>
+            <input type="text" name="telefono" placeholder="Numero" inputmode="tel" required>
+          </div>
+        </div>
+      </div>
+      <div class="row2">
+        <div class="field">
+          <label>Codice Anagrafe Apistica <span class="req">*</span></label>
+          <input type="text" name="codice_anagrafe" required placeholder="esempio 034AN318" maxlength="8">
+          <p class="hint">8 caratteri: 3 numeri, 2 lettere, 3 numeri (es. 034AN318). Se le lettere sono "RM", il carattere successivo può essere anche una lettera (es. 034RMA18).</p>
+        </div>
+        <div class="field">
+          <label>Codice Fiscale / P.IVA <span class="req">*</span></label>
+          <input type="text" name="cf_piva" required>
+        </div>
+      </div>
+      <div class="field">
+        <label>Indirizzo <span class="req">*</span></label>
+        <input type="text" name="indirizzo" required placeholder="Indirizzo">
+      </div>
+      <div class="row3">
+        <div class="field">
+          <label>Città <span class="req">*</span></label>
+          <input type="text" name="citta" id="citta" required autocomplete="off" list="comuniList">
+          <datalist id="comuniList"></datalist>
+        </div>
+        <div class="field">
+          <label>Provincia</label>
+          <input type="text" name="provincia" id="provincia" maxlength="2">
+        </div>
+        <div class="field">
+          <label>Codice Postale <span class="req">*</span></label>
+          <input type="text" name="cap" id="cap" required>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>Censimento 2026</h2>
+      <div class="field">
+        <label>Numero di arnie da denunciare nel censimento 2026 <span class="req">*</span></label>
+        <input type="number" min="1" step="1" name="arnie" id="arnie" required inputmode="numeric">
+      </div>
+      <div class="field">
+        <label>Deleghi il Consorzio Apistico alla registrazione del censimento 2026 in Anagrafe Apistica (BDA)? <span class="req">*</span></label>
+        <div class="radio-group">
+          <label><input type="radio" name="delega_censimento" value="SI" required> SI (+ 10,00 €)</label>
+          <label><input type="radio" name="delega_censimento" value="NO"> NO</label>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>Quota Associativa</h2>
+      <table class="fasce" id="tabFasce">
+        <thead><tr><th>Arnie</th><th>Quota</th></tr></thead>
+        <tbody></tbody>
+      </table>
+      <div class="review-row"><span class="rlabel">Quota associativa</span><span class="rvalue" id="quotaBase">0,00 €</span></div>
+      <div class="review-row"><span class="rlabel">Delega censimento al Consorzio</span><span class="rvalue" id="quotaDelega">+ 0,00 €</span></div>
+      <div class="grandtotal"><span>Totale da pagare</span><span id="grandTotal">0,00 €</span></div>
+    </div>
+
+    <button type="submit" id="reviewBtn">Rivedi e conferma</button>
+    <div class="msg" id="formMsg"></div>
+
+    <p class="note">
+      Dopo aver verificato i dati potrai scaricare il PDF di riepilogo e confermare l'invio.
+      Il PDF verr&agrave; inviato anche all'indirizzo email indicato nel modulo.
+    </p>
+  </form>
+
+  <!-- ============ STEP 2: RIEPILOGO / PAGAMENTO ============ -->
+  <div id="reviewSection">
+    <span class="badge-step">Riepilogo quota associativa</span>
+    <div class="card">
+      <h2>Dati Anagrafici</h2>
+      <div id="reviewAnagrafica"></div>
+    </div>
+    <div class="card">
+      <h2>Censimento 2026 e Quota</h2>
+      <div id="reviewQuota"></div>
+      <div class="grandtotal"><span>Totale da pagare</span><span id="reviewGrandTotal">0,00 €</span></div>
+      <div class="maxspesa" style="margin-top:14px;">
+        Ricordati di pagare il totale di <strong id="reviewPagamentoTotale">0,00 €</strong>
+        <br><br>
+        Il pagamento può essere fatto:<br>
+        con bonifico bancario IBAN <strong id="reviewIban"></strong> con causale <strong id="reviewCausale"></strong><br>
+        o<br>
+        direttamente presso gli uffici della segreteria.<br><br>
+        La contabile del bonifico deve essere inviata via internet alla segreteria usando l'applicazione.
+      </div>
+    </div>
+
+    <div class="btnrow" id="reviewBtnRow">
+      <button type="button" class="secondary" id="backBtn">&larr; Torna al modulo</button>
+      <button type="button" class="secondary" id="downloadPdfBtn">Scarica PDF</button>
+    </div>
+    <button type="button" id="confirmBtn" style="margin-top:10px;">Conferma e invia</button>
+    <div class="msg" id="reviewMsg"></div>
+
+    <p class="note">
+      Confermando l'invio, i dati saranno salvati nel sistema del Consorzio e il PDF di riepilogo
+      sar&agrave; inviato automaticamente all'indirizzo email indicato.
+    </p>
+  </div>
+</div>
+
+<script>
+// ------------------------------------------------------------------
+// CONFIGURAZIONE
+// ------------------------------------------------------------------
+// URL del Web App di Google Apps Script (vedi quota-associativa-Code.gs e ISTRUZIONI)
+const GOOGLE_SCRIPT_URL = "INCOLLA_QUI_URL_WEB_APP";
+
+const IBAN = "IT60Q0331713401000000060816";
+const ANNO_QUOTA = "2027";            // usato nella causale e nel nome del PDF
+
+// Fasce quota associativa: [arnie da, arnie a (null = senza limite), quota €]
+const FASCE = [
+  [1,   10,   10],
+  [11,  50,   20],
+  [51,  100,  30],
+  [101, 500,  40],
+  [501, null, 50]
+];
+const QUOTA_DELEGA_CENSIMENTO = 10;   // € in più se delega il Consorzio per il censimento
+
+// ------------------------------------------------------------------
+function fmt(n){
+  return Number(n || 0).toLocaleString("it-IT", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + " €";
+}
+function escapeHtml(s){
+  return String(s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
+}
+function fasciaPer(arnie){
+  if (!arnie || arnie < 1) return -1;
+  return FASCE.findIndex(([da, a]) => arnie >= da && (a === null || arnie <= a));
+}
+function calcolaQuota(arnie, delega){
+  const i = fasciaPer(arnie);
+  const base = i >= 0 ? FASCE[i][2] : 0;
+  const extra = delega === "SI" ? QUOTA_DELEGA_CENSIMENTO : 0;
+  return { fascia: i, base, extra, totale: base + extra };
+}
+function descrFascia(i){
+  if (i < 0) return "-";
+  const [da, a] = FASCE[i];
+  return a === null ? `da ${da} arnie in su` : `da ${da} a ${a} arnie`;
+}
+
+// tabella fasce
+document.querySelector("#tabFasce tbody").innerHTML = FASCE.map((f, i) =>
+  `<tr data-i="${i}"><td>${descrFascia(i)}</td><td>${fmt(f[2])}</td></tr>`).join("");
+
+const form = document.getElementById("quotaForm");
+const arnieEl = document.getElementById("arnie");
+const formMsg = document.getElementById("formMsg");
+const reviewMsg = document.getElementById("reviewMsg");
+const reviewSection = document.getElementById("reviewSection");
+
+function delegaValue(){
+  const r = form.querySelector('input[name="delega_censimento"]:checked');
+  return r ? r.value : "";
+}
+
+function recalc(){
+  const q = calcolaQuota(parseInt(arnieEl.value, 10) || 0, delegaValue());
+  document.querySelectorAll("#tabFasce tbody tr").forEach(tr =>
+    tr.classList.toggle("attiva", Number(tr.dataset.i) === q.fascia));
+  document.getElementById("quotaBase").textContent = fmt(q.base);
+  document.getElementById("quotaDelega").textContent = "+ " + fmt(q.extra);
+  document.getElementById("grandTotal").textContent = fmt(q.totale);
+  return q;
+}
+form.addEventListener("input", recalc);
+form.addEventListener("change", recalc);
+recalc();
+
+// ---------- maiuscolo automatico ----------
+form.querySelectorAll('input[type="text"], input[type="email"]').forEach(el => {
+  el.addEventListener("input", () => {
+    const pos = el.selectionStart;
+    el.value = el.value.toUpperCase();
+    if (pos !== null) el.setSelectionRange(pos, pos);
+  });
+});
+
+// ---------- codice anagrafe apistica ----------
+const codiceEl = form.querySelector('input[name="codice_anagrafe"]');
+const CODICE_ANAGRAFE_REGEX = /^\d{3}(?:RM[A-Z0-9]\d{2}|[A-Z]{2}\d{3})$/;
+function validaCodice(){
+  const v = codiceEl.value.trim().toUpperCase();
+  codiceEl.setCustomValidity(v && !CODICE_ANAGRAFE_REGEX.test(v)
+    ? "Formato non valido: 8 caratteri, 3 numeri + 2 lettere + 3 numeri (es. 034AN318). " +
+      "Con \"RM\" il carattere successivo può essere anche una lettera (es. 034RMA18)."
+    : "");
+}
+codiceEl.addEventListener("input", validaCodice);
+codiceEl.addEventListener("blur", validaCodice);
+
+// ---------- autocompletamento comuni ----------
+const COMUNI_URL = "https://raw.githubusercontent.com/matteocontrini/comuni-json/master/comuni.json";
+let COMUNI = [];
+const cittaEl = document.getElementById("citta");
+const provinciaEl = document.getElementById("provincia");
+const capEl = document.getElementById("cap");
+(async function loadComuni(){
+  try {
+    const resp = await fetch(COMUNI_URL);
+    if (!resp.ok) return;
+    COMUNI = await resp.json();
+    const frag = document.createDocumentFragment();
+    COMUNI.forEach(c => { const o = document.createElement("option"); o.value = c.nome.toUpperCase(); frag.appendChild(o); });
+    document.getElementById("comuniList").appendChild(frag);
+  } catch (e) { console.warn("Elenco comuni non disponibile:", e); }
+})();
+function onCittaChange(){
+  if (!COMUNI.length) return;
+  const m = COMUNI.find(c => c.nome.toLowerCase() === cittaEl.value.trim().toLowerCase());
+  if (!m) return;
+  if (m.sigla) provinciaEl.value = m.sigla;
+  if (Array.isArray(m.cap) && m.cap.length === 1) capEl.value = m.cap[0];
+}
+cittaEl.addEventListener("change", onCittaChange);
+cittaEl.addEventListener("input", onCittaChange);
+
+// ---------- raccolta dati ----------
+function collectPayload(){
+  const payload = { tipo_modulo: "quota_associativa" };
+  new FormData(form).forEach((v, k) => { payload[k] = String(v).trim(); });
+  payload.codice_anagrafe = (payload.codice_anagrafe || "").toUpperCase();
+  const arnie = parseInt(payload.arnie, 10) || 0;
+  const q = calcolaQuota(arnie, payload.delega_censimento);
+  payload.arnie = arnie;
+  payload.fascia = descrFascia(q.fascia);
+  payload.quota_base = q.base.toFixed(2);
+  payload.quota_delega = q.extra.toFixed(2);
+  payload.totale = q.totale.toFixed(2);
+  payload.iban = IBAN;
+  payload.causale = buildCausale(payload);
+  payload.timestamp = new Date().toISOString();
+  return payload;
+}
+function buildCausale(p){
+  return `${p.codice_anagrafe || ""}_${p.cognome_nome || ""}_quota_${ANNO_QUOTA}`;
+}
+function nomeBase(p){
+  return [p.codice_anagrafe, p.cognome_nome].filter(Boolean).join("_")
+    .replace(/[^a-z0-9]+/gi, "_").replace(/^_+|_+$/g, "") || "quota";
+}
+
+// ---------- STEP 1 -> STEP 2 ----------
+form.addEventListener("submit", (e) => {
+  e.preventDefault();
+  formMsg.className = "msg";
+  validaCodice();
+  if (!form.reportValidity()) return;
+
+  const p = collectPayload();
+  const righe = (rows) => rows.map(r =>
+    `<div class="review-row"><span class="rlabel">${r[0]}</span><span class="rvalue">${escapeHtml(r[1] || "-")}</span></div>`).join("");
+
+  document.getElementById("reviewAnagrafica").innerHTML = righe([
+    ["Cognome Nome / Denominazione", p.cognome_nome],
+    ["Email", p.email],
+    ["Telefono", `${p.prefisso || ""} ${p.telefono || ""}`.trim()],
+    ["Codice Anagrafe Apistica", p.codice_anagrafe],
+    ["Codice Fiscale / P.IVA", p.cf_piva],
+    ["Indirizzo", p.indirizzo],
+    ["Città", p.citta],
+    ["Provincia", p.provincia || "-"],
+    ["CAP", p.cap]
+  ]);
+  document.getElementById("reviewQuota").innerHTML = righe([
+    ["Arnie da denunciare censimento 2026", String(p.arnie)],
+    ["Fascia", p.fascia],
+    ["Quota associativa", fmt(p.quota_base)],
+    ["Delega censimento al Consorzio", p.delega_censimento],
+    ["Importo delega censimento", "+ " + fmt(p.quota_delega)]
+  ]);
+  document.getElementById("reviewGrandTotal").textContent = fmt(p.totale);
+  document.getElementById("reviewPagamentoTotale").textContent = fmt(p.totale);
+  document.getElementById("reviewIban").textContent = IBAN;
+  document.getElementById("reviewCausale").textContent = p.causale;
+
+  form.style.display = "none";
+  reviewSection.style.display = "block";
+  reviewMsg.className = "msg";
+  window.scrollTo({ top: 0, behavior: "smooth" });
+});
+
+document.getElementById("backBtn").addEventListener("click", () => {
+  reviewSection.style.display = "none";
+  form.style.display = "block";
+  window.scrollTo({ top: 0, behavior: "smooth" });
+});
+
+// ---------- PDF di riepilogo ----------
+function generatePdf(){
+  const p = collectPayload();
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF({ unit: "pt", format: "a4" });
+  const M = 7 * 2.834645669;
+  const pageW = doc.internal.pageSize.getWidth();
+  const right = pageW - M, textW = right - M;
+  let y = M + 10;
+
+  doc.setFont("helvetica", "bold"); doc.setFontSize(16);
+  doc.text("Calcolo Quota Associativa", pageW / 2, y, { align: "center" });
+  y += 18;
+  doc.setFontSize(10); doc.setFont("helvetica", "normal");
+  doc.text("Consorzio Apistico Provinciale di Macerata", M, y);
+  y += 25;
+
+  function section(t){
+    doc.setFont("helvetica", "bold"); doc.setFontSize(12); doc.setTextColor(23,138,61);
+    doc.text(t, M, y); doc.setTextColor(0,0,0);
+    y += 6; doc.setDrawColor(23,138,61); doc.line(M, y, right, y); y += 16;
+    doc.setFont("helvetica", "normal"); doc.setFontSize(10);
+  }
+  function row(l, v){
+    doc.setFont("helvetica", "bold"); doc.text(String(l), M, y);
+    doc.setFont("helvetica", "normal"); doc.text(String(v ?? "-"), M + 230, y);
+    y += 16;
+  }
+
+  section("Dati Anagrafici");
+  row("Cognome Nome / Denominazione", p.cognome_nome);
+  row("Email", p.email);
+  row("Telefono", `${p.prefisso || ""} ${p.telefono || ""}`.trim());
+  row("Codice Anagrafe Apistica", p.codice_anagrafe);
+  row("Codice Fiscale / P.IVA", p.cf_piva);
+  row("Indirizzo", p.indirizzo);
+  row("Città", p.citta);
+  row("Provincia", p.provincia || "-");
+  row("CAP", p.cap);
+  y += 10;
+
+  section("Censimento 2026 e Quota");
+  row("Arnie da denunciare censimento 2026", p.arnie);
+  row("Fascia", p.fascia);
+  row("Quota associativa", fmt(p.quota_base));
+  row("Delega censimento al Consorzio", p.delega_censimento);
+  row("Importo delega censimento", "+ " + fmt(p.quota_delega));
+  y += 6;
+  doc.setFont("helvetica", "bold"); doc.setFontSize(12);
+  doc.text("Totale da pagare", M, y); doc.text(fmt(p.totale), M + 230, y);
+  y += 25;
+
+  doc.setFont("helvetica", "normal"); doc.setFontSize(10);
+  const lab = "Ricordati di pagare il totale di ";
+  doc.text(lab, M, y);
+  doc.setFont("helvetica", "bold"); doc.text(fmt(p.totale), M + doc.getTextWidth(lab), y);
+  y += 18;
+  doc.setFont("helvetica", "normal"); doc.setFontSize(9);
+  [
+    "Il pagamento può essere fatto:",
+    `con bonifico bancario IBAN ${IBAN} con causale ${p.causale}`,
+    "o",
+    "direttamente presso gli uffici della segreteria.",
+    "La contabile del bonifico deve essere inviata via internet alla segreteria usando l'applicazione."
+  ].forEach(linea => doc.splitTextToSize(linea, textW).forEach(l => { doc.text(l, M, y); y += 13; }));
+  y += 8;
+  doc.setFontSize(8); doc.setTextColor(120,120,120);
+  doc.text(`Documento generato il ${new Date().toLocaleString("it-IT")}`, M, y);
+  return doc;
+}
+
+document.getElementById("downloadPdfBtn").addEventListener("click", () => {
+  const p = collectPayload();
+  generatePdf().save(`${nomeBase(p)}_quota_${ANNO_QUOTA}.pdf`);
+});
+
+// ---------- STEP 2: conferma e invio ----------
+const confirmBtn = document.getElementById("confirmBtn");
+confirmBtn.addEventListener("click", async () => {
+  reviewMsg.className = "msg";
+  if (!GOOGLE_SCRIPT_URL || GOOGLE_SCRIPT_URL.indexOf("script.google.com") === -1) {
+    reviewMsg.className = "msg err";
+    reviewMsg.textContent = "Modulo non ancora configurato (manca l'URL dello script Google).";
+    return;
+  }
+  confirmBtn.disabled = true;
+  confirmBtn.textContent = "Invio in corso...";
+  try {
+    const p = collectPayload();
+    p.pdf_filename = `${nomeBase(p)}_quota_${ANNO_QUOTA}.pdf`;
+    p.pdf_base64 = generatePdf().output("datauristring").split(",")[1];
+
+    await fetch(GOOGLE_SCRIPT_URL, {
+      method: "POST",
+      mode: "no-cors",
+      headers: { "Content-Type": "text/plain;charset=utf-8" },
+      body: JSON.stringify(p)
+    });
+
+    reviewMsg.className = "msg ok";
+    reviewMsg.textContent = "Invio completato. Riceverai il PDF di riepilogo all'indirizzo email indicato.";
+    confirmBtn.textContent = "Inviato";
+    document.getElementById("backBtn").style.display = "none";
+    setTimeout(() => { form.reset(); recalc(); }, 300);
+  } catch (err) {
+    reviewMsg.className = "msg err";
+    reviewMsg.textContent = "Si è verificato un errore durante l'invio. Riprova o contatta il Consorzio.";
+    confirmBtn.disabled = false;
+    confirmBtn.textContent = "Conferma e invia";
+  }
+});
+</script>
+</body>
+</html>
