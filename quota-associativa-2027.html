@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Calcolo Quota Associativa - Apicoltori MC</title>
+<title>Compila Modulo Adesione 2026 - Apicoltori MC</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <style>
   :root{
@@ -73,7 +73,7 @@
 </head>
 <body>
 <div class="wrap">
-  <h1>Calcolo Quota Associativa</h1>
+  <h1>Compila Modulo Adesione 2026</h1>
   <p class="subtitle">Consorzio Apistico Provinciale di Macerata &mdash; indica le arnie da denunciare nel censimento 2026 per calcolare la quota associativa</p>
 
   <!-- ============ STEP 1: MODULO ============ -->
@@ -105,8 +105,24 @@
           <p class="hint">8 caratteri: 3 numeri, 2 lettere, 3 numeri (es. 034AN318). Se le lettere sono "RM", il carattere successivo può essere anche una lettera (es. 034RMA18).</p>
         </div>
         <div class="field">
-          <label>Codice Fiscale / P.IVA <span class="req">*</span></label>
-          <input type="text" name="cf_piva" required>
+          <label>Codice Fiscale <span class="req">*</span></label>
+          <input type="text" name="codice_fiscale" required>
+        </div>
+      </div>
+      <div class="row3">
+        <div class="field">
+          <label>Partita IVA</label>
+          <input type="text" name="partita_iva" placeholder="se presente">
+        </div>
+        <div class="field">
+          <label>Luogo di nascita <span class="req">*</span></label>
+          <input type="text" name="luogo_nascita" required autocomplete="off" list="comuniNascitaList">
+          <datalist id="comuniNascitaList"></datalist>
+          <p class="hint">Elenco dei comuni italiani, compresi quelli soppressi per fusione (es. PIEVEBOVIGLIANA, oggi VALFORNACE). Se sei nato all'estero scrivi liberamente.</p>
+        </div>
+        <div class="field">
+          <label>Data di nascita <span class="req">*</span></label>
+          <input type="date" name="data_nascita" required>
         </div>
       </div>
       <div class="field">
@@ -146,6 +162,53 @@
     </div>
 
     <div class="card">
+      <h2>Adesione all'Associazione</h2>
+      <div class="field">
+        <label>Tipo di apicoltura <span class="req">*</span></label>
+        <div class="radio-group">
+          <label><input type="radio" name="tipo_apicoltura" value="CONSUMO FAMILIARE" required> Consumo familiare (massimo 10 arnie)</label>
+          <label><input type="radio" name="tipo_apicoltura" value="COMMERCIALIZZAZIONE"> Commercializzazione (pi&ugrave; di 10 arnie)</label>
+        </div>
+        <p class="hint" id="hintTipo"></p>
+      </div>
+      <div class="field">
+        <label>Il sottoscritto aderisce in qualit&agrave; di <span class="req">*</span></label>
+        <div class="radio-group">
+          <label><input type="radio" name="qualita" value="PERSONA FISICA" required> Persona fisica</label>
+          <label><input type="radio" name="qualita" value="DITTA INDIVIDUALE"> Ditta individuale</label>
+          <label><input type="radio" name="qualita" value="LEGALE RAPPRESENTANTE"> Legale rappresentante di societ&agrave;/ente</label>
+        </div>
+      </div>
+      <div id="enteWrap" style="display:none;">
+        <div class="field">
+          <label>Denominazione societ&agrave;/ente <span class="req">*</span></label>
+          <input type="text" name="ente_denominazione" id="ente_denominazione">
+        </div>
+        <div class="row2">
+          <div class="field">
+            <label>Codice Fiscale societ&agrave;/ente <span class="req">*</span></label>
+            <input type="text" name="ente_cf" id="ente_cf">
+          </div>
+          <div class="field">
+            <label>Partita IVA societ&agrave;/ente</label>
+            <input type="text" name="ente_piva">
+          </div>
+        </div>
+        <div class="row2">
+          <div class="field">
+            <label>Indirizzo e civico societ&agrave;/ente <span class="req">*</span></label>
+            <input type="text" name="ente_indirizzo" id="ente_indirizzo">
+          </div>
+          <div class="field">
+            <label>Comune societ&agrave;/ente <span class="req">*</span></label>
+            <input type="text" name="ente_comune" id="ente_comune">
+          </div>
+        </div>
+      </div>
+      <p class="hint">Confermando l'invio, il PDF conterr&agrave; anche la richiesta di adesione all'Associazione, da firmare e riconsegnare.</p>
+    </div>
+
+    <div class="card">
       <h2>Quota Associativa</h2>
       <table class="fasce" id="tabFasce">
         <thead><tr><th>Arnie</th><th>Quota</th></tr></thead>
@@ -171,6 +234,10 @@
     <div class="card">
       <h2>Dati Anagrafici</h2>
       <div id="reviewAnagrafica"></div>
+    </div>
+    <div class="card">
+      <h2>Adesione all'Associazione</h2>
+      <div id="reviewAdesione"></div>
     </div>
     <div class="card">
       <h2>Censimento 2026 e Quota</h2>
@@ -206,9 +273,11 @@
 // CONFIGURAZIONE
 // ------------------------------------------------------------------
 // URL del Web App di Google Apps Script (vedi quota-associativa-Code.gs e ISTRUZIONI)
-const GOOGLE_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzbG6iHkwy38g73_y52g2g0skFHb5CSDJCr06VTT-OqVpqfRF7QF6pTzB0ASdjG8Oqf/exec"
+const GOOGLE_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzbG6iHkwy38g73_y52g2g0skFHb5CSDJCr06VTT-OqVpqfRF7QF6pTzB0ASdjG8Oqf/exec";
+
 const IBAN = "IT60Q0331713401000000060816";
-const ANNO_QUOTA = "2027";            // usato nella causale e nel nome del PDF
+const ANNO_QUOTA = "2027";            // usato nella causale del bonifico (es. ..._quota_2027)
+const NOME_PDF = "adesione_2026";     // finale del nome del file PDF (es. 034AN318_ROSSI_MARIO_adesione_2026.pdf)
 
 // Fasce quota associativa: [arnie da, arnie a (null = senza limite), quota €]
 const FASCE = [
@@ -271,6 +340,35 @@ form.addEventListener("input", recalc);
 form.addEventListener("change", recalc);
 recalc();
 
+// ---------- adesione: tipo apicoltura suggerito e dati societa' ----------
+const hintTipo = document.getElementById("hintTipo");
+function aggiornaAdesione(){
+  const n = parseInt(arnieEl.value, 10) || 0;
+  if (n > 0) {
+    const atteso = n <= 10 ? "CONSUMO FAMILIARE" : "COMMERCIALIZZAZIONE";
+    const scelto = form.querySelector('input[name="tipo_apicoltura"]:checked');
+    if (!scelto) {
+      const r = form.querySelector(`input[name="tipo_apicoltura"][value="${atteso}"]`);
+      if (r) r.checked = true;
+    }
+    hintTipo.textContent = n <= 10
+      ? "Con " + n + " arnie rientri nel consumo familiare."
+      : "Con " + n + " arnie rientri nella commercializzazione.";
+  } else {
+    hintTipo.textContent = "";
+  }
+  const ente = (form.querySelector('input[name="qualita"]:checked') || {}).value === "LEGALE RAPPRESENTANTE";
+  document.getElementById("enteWrap").style.display = ente ? "block" : "none";
+  ["ente_denominazione", "ente_cf", "ente_indirizzo", "ente_comune"].forEach(id => {
+    const el = document.getElementById(id);
+    el.required = ente;
+    if (!ente) el.value = "";
+  });
+}
+form.addEventListener("input", aggiornaAdesione);
+form.addEventListener("change", aggiornaAdesione);
+aggiornaAdesione();
+
 // ---------- maiuscolo automatico ----------
 form.querySelectorAll('input[type="text"], input[type="email"]').forEach(el => {
   el.addEventListener("input", () => {
@@ -295,19 +393,42 @@ codiceEl.addEventListener("blur", validaCodice);
 
 // ---------- autocompletamento comuni ----------
 const COMUNI_URL = "https://raw.githubusercontent.com/matteocontrini/comuni-json/master/comuni.json";
+// Comuni soppressi per fusione: non sono nell'elenco ufficiale dei comuni attuali,
+// ma servono come luogo di nascita di chi e' nato prima della fusione.
+// Aggiungi qui altri comuni soppressi se necessario.
+const COMUNI_SOPPRESSI = [
+  "ACQUACANINA", "FIORDIMONTE", "PIEVEBOVIGLIANA",                       // ora Fiastra / Valfornace (MC)
+  "CASTEL COLONNA", "MONTERADO", "RIPE",                                  // ora Trecastelli (AN)
+  "COLBORDOLO", "SANT'ANGELO IN LIZZOLA",                                 // ora Vallefoglia (PU)
+  "BARCHI", "ORCIANO DI PESARO", "PIAGGE", "SAN GIORGIO DI PESARO",       // ora Terre Roveresche (PU)
+  "MONTEMAGGIORE AL METAURO", "SALTARA", "SERRUNGARINA",                  // ora Colli al Metauro (PU)
+  "AUDITORE", "SASSOCORVARO",                                             // ora Sassocorvaro Auditore (PU)
+  "MONTECICCARDO"                                                         // ora Pesaro (PU)
+];
 let COMUNI = [];
 const cittaEl = document.getElementById("citta");
 const provinciaEl = document.getElementById("provincia");
 const capEl = document.getElementById("cap");
+function riempiDatalist(id, nomi){
+  const el = document.getElementById(id);
+  if (!el) return;
+  const frag = document.createDocumentFragment();
+  nomi.forEach(n => { const o = document.createElement("option"); o.value = n; frag.appendChild(o); });
+  el.innerHTML = "";
+  el.appendChild(frag);
+}
 (async function loadComuni(){
   try {
     const resp = await fetch(COMUNI_URL);
     if (!resp.ok) return;
     COMUNI = await resp.json();
-    const frag = document.createDocumentFragment();
-    COMUNI.forEach(c => { const o = document.createElement("option"); o.value = c.nome.toUpperCase(); frag.appendChild(o); });
-    document.getElementById("comuniList").appendChild(frag);
-  } catch (e) { console.warn("Elenco comuni non disponibile:", e); }
+    const nomi = COMUNI.map(c => c.nome.toUpperCase());
+    riempiDatalist("comuniList", nomi);
+    riempiDatalist("comuniNascitaList", nomi.concat(COMUNI_SOPPRESSI).sort());
+  } catch (e) {
+    console.warn("Elenco comuni non disponibile:", e);
+    riempiDatalist("comuniNascitaList", COMUNI_SOPPRESSI);
+  }
 })();
 function onCittaChange(){
   if (!COMUNI.length) return;
@@ -324,6 +445,9 @@ function collectPayload(){
   const payload = { tipo_modulo: "quota_associativa" };
   new FormData(form).forEach((v, k) => { payload[k] = String(v).trim(); });
   payload.codice_anagrafe = (payload.codice_anagrafe || "").toUpperCase();
+  payload.cf_piva = [payload.codice_fiscale, payload.partita_iva].filter(Boolean).join(" / ");
+  payload.data_nascita_it = payload.data_nascita
+    ? payload.data_nascita.split("-").reverse().join("/") : "";
   const arnie = parseInt(payload.arnie, 10) || 0;
   const q = calcolaQuota(arnie, payload.delega_censimento);
   payload.arnie = arnie;
@@ -360,12 +484,28 @@ form.addEventListener("submit", (e) => {
     ["Email", p.email],
     ["Telefono", `${p.prefisso || ""} ${p.telefono || ""}`.trim()],
     ["Codice Anagrafe Apistica", p.codice_anagrafe],
-    ["Codice Fiscale / P.IVA", p.cf_piva],
+    ["Codice Fiscale", p.codice_fiscale],
+    ["Partita IVA", p.partita_iva || "-"],
+    ["Luogo e data di nascita", `${p.luogo_nascita || ""} ${p.data_nascita_it || ""}`.trim()],
     ["Indirizzo", p.indirizzo],
     ["Città", p.citta],
     ["Provincia", p.provincia || "-"],
     ["CAP", p.cap]
   ]);
+  const adesioneRows = [
+    ["Tipo di apicoltura", p.tipo_apicoltura],
+    ["Aderisce in qualit\u00e0 di", p.qualita]
+  ];
+  if (p.qualita === "LEGALE RAPPRESENTANTE") {
+    adesioneRows.push(
+      ["Denominazione societ\u00e0/ente", p.ente_denominazione],
+      ["Codice Fiscale societ\u00e0/ente", p.ente_cf],
+      ["Partita IVA societ\u00e0/ente", p.ente_piva || "-"],
+      ["Indirizzo societ\u00e0/ente", p.ente_indirizzo],
+      ["Comune societ\u00e0/ente", p.ente_comune]);
+  }
+  document.getElementById("reviewAdesione").innerHTML = righe(adesioneRows);
+
   document.getElementById("reviewQuota").innerHTML = righe([
     ["Arnie da denunciare censimento 2026", String(p.arnie)],
     ["Fascia", p.fascia],
@@ -401,7 +541,7 @@ function generatePdf(){
   let y = M + 10;
 
   doc.setFont("helvetica", "bold"); doc.setFontSize(16);
-  doc.text("Calcolo Quota Associativa", pageW / 2, y, { align: "center" });
+  doc.text("Modulo Adesione 2026", pageW / 2, y, { align: "center" });
   y += 18;
   doc.setFontSize(10); doc.setFont("helvetica", "normal");
   doc.text("Consorzio Apistico Provinciale di Macerata", M, y);
@@ -424,7 +564,9 @@ function generatePdf(){
   row("Email", p.email);
   row("Telefono", `${p.prefisso || ""} ${p.telefono || ""}`.trim());
   row("Codice Anagrafe Apistica", p.codice_anagrafe);
-  row("Codice Fiscale / P.IVA", p.cf_piva);
+  row("Codice Fiscale", p.codice_fiscale);
+  row("Partita IVA", p.partita_iva || "-");
+  row("Luogo e data di nascita", `${p.luogo_nascita || ""} ${p.data_nascita_it || ""}`.trim());
   row("Indirizzo", p.indirizzo);
   row("Città", p.citta);
   row("Provincia", p.provincia || "-");
@@ -458,12 +600,93 @@ function generatePdf(){
   y += 8;
   doc.setFontSize(8); doc.setTextColor(120,120,120);
   doc.text(`Documento generato il ${new Date().toLocaleString("it-IT")}`, M, y);
+
+  // ---------- PAGINA 2: richiesta di adesione all'associazione ----------
+  doc.addPage();
+  doc.setTextColor(0,0,0);
+  y = M + 10;
+  doc.setFont("helvetica", "normal"); doc.setFontSize(8.5);
+  [
+    "Associazione Consorzio Apistico della Provincia di Macerata",
+    "Sede: Via Vincenzoni 1 Montecassiano MC",
+    "C.F. 80003820430 P.I. 00751020439",
+    "E-mail apicoltorimacerata@gmail.com"
+  ].forEach(l => { doc.text(l, right, y, { align: "right" }); y += 11; });
+  y += 14;
+
+  doc.setFont("helvetica", "bold"); doc.setFontSize(13);
+  doc.text("Richiesta di adesione all'associazione", pageW / 2, y, { align: "center" });
+  y += 24;
+
+  function box(checked){ return checked ? "[X]" : "[  ]"; }
+  function riga(l, v){
+    doc.setFont("helvetica", "bold"); doc.setFontSize(10);
+    doc.text(String(l), M, y);
+    doc.setFont("helvetica", "normal");
+    doc.text(String(v || "-"), M + 230, y, { maxWidth: textW - 230 });
+    doc.setDrawColor(210,210,210);
+    doc.line(M, y + 4, right, y + 4);
+    y += 19;
+  }
+  function scelta(t){
+    doc.setFont("helvetica", "normal"); doc.setFontSize(10);
+    doc.text(t, M, y); y += 16;
+  }
+
+  riga("CODICE BDA", p.codice_anagrafe);
+  riga("NUMERO ARNIE ULTIMO CENSIMENTO", p.arnie);
+  y += 6;
+  scelta(`${box(p.tipo_apicoltura === "CONSUMO FAMILIARE")} CONSUMO FAMILIARE (MASSIMO 10 ARNIE)`);
+  scelta(`${box(p.tipo_apicoltura === "COMMERCIALIZZAZIONE")} COMMERCIALIZZAZIONE (PIU' DI 10 ARNIE)`);
+  y += 10;
+
+  riga("Il/La Sottoscritto/a", p.cognome_nome);
+  riga("LUOGO E DATA DI NASCITA", `${p.luogo_nascita || ""} ${p.data_nascita_it || ""}`.trim());
+  riga("RESIDENTE NEL COMUNE DI", `${p.citta || ""}${p.provincia ? " (" + p.provincia + ")" : ""} ${p.cap || ""}`.trim());
+  riga("INDIRIZZO E CIVICO", p.indirizzo);
+  riga("CODICE FISCALE", p.codice_fiscale);
+  riga("PARTITA IVA", p.partita_iva);
+  riga("CELLULARE", `${p.prefisso || ""} ${p.telefono || ""}`.trim());
+  riga("MAIL", p.email);
+  y += 8;
+
+  doc.setFont("helvetica", "bold"); doc.setFontSize(10);
+  doc.text("IN QUALITA' DI", M, y); y += 16;
+  scelta(`${box(p.qualita === "PERSONA FISICA")} PERSONA FISICA`);
+  scelta(`${box(p.qualita === "DITTA INDIVIDUALE")} DITTA INDIVIDUALE`);
+  scelta(`${box(p.qualita === "LEGALE RAPPRESENTANTE")} LEGALE RAPPRESENTANTE DI`);
+  y += 6;
+  riga("DENOMINAZIONE", p.ente_denominazione);
+  riga("CODICE FISCALE", p.ente_cf);
+  riga("PARTITA IVA", p.ente_piva);
+  riga("INDIRIZZO E CIVICO", p.ente_indirizzo);
+  riga("COMUNE", p.ente_comune);
+  y += 12;
+
+  doc.setFont("helvetica", "normal"); doc.setFontSize(9);
+  [
+    "Con la presente chiede di essere ammesso/a in qualit\u00e0 di socio/a all'Associazione Consorzio Apistico della Provincia di Macerata per condividerne le finalit\u00e0.",
+    "Dichiara di accettare lo Statuto sociale impegnandosi al versamento della quota associativa annuale stabilita dal Consiglio direttivo dell'Associazione.",
+    "L'iscrizione \u00e8 valida fino a revoca da comunicare per iscritto all'Associazione."
+  ].forEach(t => { doc.splitTextToSize(t, textW).forEach(l => { doc.text(l, M, y); y += 12; }); y += 3; });
+  y += 10;
+  doc.text("Luogo e data ___________________________", M, y);
+  doc.text("Firma ________________________________", M + 260, y);
+  y += 26;
+
+  [
+    "Con la presente dichiara di aver ricevuto l'informativa sul trattamento dei propri dati personali da parte dell'Associazione ai fini del rapporto associativo nei limiti di legge.",
+    "Presta quindi il consenso al trattamento dei dati di cui sopra ai sensi della legge sulla privacy."
+  ].forEach(t => { doc.splitTextToSize(t, textW).forEach(l => { doc.text(l, M, y); y += 12; }); y += 3; });
+  y += 12;
+  doc.text("Firma ________________________________", M + 260, y);
+
   return doc;
 }
 
 document.getElementById("downloadPdfBtn").addEventListener("click", () => {
   const p = collectPayload();
-  generatePdf().save(`${nomeBase(p)}_quota_${ANNO_QUOTA}.pdf`);
+  generatePdf().save(`${nomeBase(p)}_${NOME_PDF}.pdf`);
 });
 
 // ---------- STEP 2: conferma e invio ----------
@@ -479,7 +702,7 @@ confirmBtn.addEventListener("click", async () => {
   confirmBtn.textContent = "Invio in corso...";
   try {
     const p = collectPayload();
-    p.pdf_filename = `${nomeBase(p)}_quota_${ANNO_QUOTA}.pdf`;
+    p.pdf_filename = `${nomeBase(p)}_${NOME_PDF}.pdf`;
     p.pdf_base64 = generatePdf().output("datauristring").split(",")[1];
 
     await fetch(GOOGLE_SCRIPT_URL, {
