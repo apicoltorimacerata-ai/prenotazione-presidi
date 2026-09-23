@@ -166,10 +166,11 @@
       <div class="field">
         <label>Tipo di apicoltura <span class="req">*</span></label>
         <div class="radio-group">
-          <label><input type="radio" name="tipo_apicoltura" value="CONSUMO FAMILIARE" required> Consumo familiare (massimo 10 arnie)</label>
+          <label><input type="radio" name="tipo_apicoltura" value="CONSUMO FAMILIARE" required> Consumo familiare <strong>(massimo 10 arnie)</strong></label>
           <label><input type="radio" name="tipo_apicoltura" value="COMMERCIALIZZAZIONE"> Commercializzazione (pi&ugrave; di 10 arnie)</label>
         </div>
         <p class="hint" id="hintTipo"></p>
+        <div class="msg" id="avvisoTipo" style="margin-top:8px;"></div>
       </div>
       <div class="field">
         <label>Il sottoscritto aderisce in qualit&agrave; di <span class="req">*</span></label>
@@ -276,7 +277,7 @@
 const GOOGLE_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzbG6iHkwy38g73_y52g2g0skFHb5CSDJCr06VTT-OqVpqfRF7QF6pTzB0ASdjG8Oqf/exec";
 
 const IBAN = "IT60Q0331713401000000060816";
-const ANNO_QUOTA = "2027";            // usato nella causale del bonifico (es. ..._quota_2027)
+const CAUSALE_SUFFISSO = "adesione_2026";  // finale della causale del bonifico (es. 034AN318_ROSSI MARIO_adesione_2026)
 const NOME_PDF = "adesione_2026";     // finale del nome del file PDF (es. 034AN318_ROSSI_MARIO_adesione_2026.pdf)
 
 // Fasce quota associativa: [arnie da, arnie a (null = senza limite), quota €]
@@ -356,6 +357,16 @@ function aggiornaAdesione(){
       : "Con " + n + " arnie rientri nella commercializzazione.";
   } else {
     hintTipo.textContent = "";
+  }
+  // segnalazione (non bloccante) se il tipo scelto non corrisponde al numero di arnie
+  const scelto2 = (form.querySelector('input[name="tipo_apicoltura"]:checked') || {}).value;
+  const avviso = document.getElementById("avvisoTipo");
+  if (n > 10 && scelto2 === "CONSUMO FAMILIARE") {
+    avviso.className = "msg err";
+    avviso.innerHTML = "Attenzione: hai indicato <strong>" + n + " arnie</strong>, pi\u00f9 di 10, ma hai scelto <strong>consumo familiare</strong>, che \u00e8 previsto fino a 10 arnie. Puoi comunque inviare il modulo: controlla che i dati siano giusti.";
+  } else {
+    avviso.className = "msg";
+    avviso.innerHTML = "";
   }
   const ente = (form.querySelector('input[name="qualita"]:checked') || {}).value === "LEGALE RAPPRESENTANTE";
   document.getElementById("enteWrap").style.display = ente ? "block" : "none";
@@ -457,11 +468,14 @@ function collectPayload(){
   payload.totale = q.totale.toFixed(2);
   payload.iban = IBAN;
   payload.causale = buildCausale(payload);
+  payload.incongruenza_tipo = (arnie > 10 && payload.tipo_apicoltura === "CONSUMO FAMILIARE");
+  payload.nota_controllo = payload.incongruenza_tipo
+    ? "DA VERIFICARE: " + arnie + " arnie ma adesione per consumo familiare" : "";
   payload.timestamp = new Date().toISOString();
   return payload;
 }
 function buildCausale(p){
-  return `${p.codice_anagrafe || ""}_${p.cognome_nome || ""}_quota_${ANNO_QUOTA}`;
+  return `${p.codice_anagrafe || ""}_${p.cognome_nome || ""}_${CAUSALE_SUFFISSO}`;
 }
 function nomeBase(p){
   return [p.codice_anagrafe, p.cognome_nome].filter(Boolean).join("_")
@@ -504,7 +518,11 @@ form.addEventListener("submit", (e) => {
       ["Indirizzo societ\u00e0/ente", p.ente_indirizzo],
       ["Comune societ\u00e0/ente", p.ente_comune]);
   }
-  document.getElementById("reviewAdesione").innerHTML = righe(adesioneRows);
+  document.getElementById("reviewAdesione").innerHTML = righe(adesioneRows) +
+    (p.incongruenza_tipo
+      ? '<div class="msg err" style="margin-top:10px;">Attenzione: ' + p.arnie +
+        ' arnie con adesione per <strong>consumo familiare</strong> (prevista fino a 10 arnie). Il modulo pu\u00f2 comunque essere inviato.</div>'
+      : "");
 
   document.getElementById("reviewQuota").innerHTML = righe([
     ["Arnie da denunciare censimento 2026", String(p.arnie)],
@@ -590,9 +608,19 @@ function generatePdf(){
   doc.setFont("helvetica", "bold"); doc.text(fmt(p.totale), M + doc.getTextWidth(lab), y);
   y += 18;
   doc.setFont("helvetica", "normal"); doc.setFontSize(9);
+  function rigaEtichettaValore(etichetta, valore){
+    doc.setFont("helvetica", "normal");
+    doc.text(etichetta, M, y);
+    const x = M + doc.getTextWidth(etichetta);
+    doc.setFont("helvetica", "bold");
+    const righe = doc.splitTextToSize(String(valore), textW - (x - M));
+    righe.forEach((l, i) => { doc.text(l, i === 0 ? x : M, y); y += 13; });
+    doc.setFont("helvetica", "normal");
+  }
+  doc.text("Il pagamento può essere fatto:", M, y); y += 13;
+  rigaEtichettaValore("con bonifico bancario IBAN ", IBAN);
+  rigaEtichettaValore("con causale ", p.causale);
   [
-    "Il pagamento può essere fatto:",
-    `con bonifico bancario IBAN ${IBAN} con causale ${p.causale}`,
     "o",
     "direttamente presso gli uffici della segreteria.",
     "La contabile del bonifico deve essere inviata via internet alla segreteria usando l'applicazione."
