@@ -118,7 +118,7 @@
           <label>Luogo di nascita <span class="req">*</span></label>
           <input type="text" name="luogo_nascita" required autocomplete="off" list="comuniNascitaList">
           <datalist id="comuniNascitaList"></datalist>
-          <p class="hint">Se sei nato all'estero scrivi liberamente.</p>
+          <p class="hint">Elenco dei comuni italiani, compresi quelli soppressi per fusione (es. PIEVEBOVIGLIANA, oggi VALFORNACE). Se sei nato all'estero scrivi liberamente.</p>
         </div>
         <div class="field">
           <label>Data di nascita <span class="req">*</span></label>
@@ -715,7 +715,18 @@ function generatePdf(){
   return doc;
 }
 
+// dopo l'invio il modulo viene svuotato: si conserva qui il PDF inviato,
+// cosi' il pulsante "Scarica PDF" continua a scaricare quello giusto e non un PDF vuoto.
+let pdfInviato = null;
+
 document.getElementById("downloadPdfBtn").addEventListener("click", () => {
+  if (pdfInviato) {
+    const a = document.createElement("a");
+    a.href = pdfInviato.dataUri;
+    a.download = pdfInviato.nome;
+    a.click();
+    return;
+  }
   const p = collectPayload();
   generatePdf().save(`${nomeBase(p)}_${NOME_PDF}.pdf`);
 });
@@ -734,7 +745,8 @@ confirmBtn.addEventListener("click", async () => {
   try {
     const p = collectPayload();
     p.pdf_filename = `${nomeBase(p)}_${NOME_PDF}.pdf`;
-    p.pdf_base64 = generatePdf().output("datauristring").split(",")[1];
+    const pdfDataUri = generatePdf().output("datauristring");
+    p.pdf_base64 = pdfDataUri.split(",")[1];
 
     await fetch(GOOGLE_SCRIPT_URL, {
       method: "POST",
@@ -743,11 +755,14 @@ confirmBtn.addEventListener("click", async () => {
       body: JSON.stringify(p)
     });
 
+    pdfInviato = { nome: p.pdf_filename, dataUri: pdfDataUri };
+
     reviewMsg.className = "msg ok";
     reviewMsg.textContent = "Invio completato. Riceverai il PDF di riepilogo all'indirizzo email indicato.";
     confirmBtn.textContent = "Inviato";
+    confirmBtn.disabled = true;
     document.getElementById("backBtn").style.display = "none";
-    setTimeout(() => { form.reset(); recalc(); }, 300);
+    setTimeout(() => { form.reset(); ultimoArnie = null; recalc(); aggiornaAdesione(); }, 300);
   } catch (err) {
     reviewMsg.className = "msg err";
     reviewMsg.textContent = "Si è verificato un errore durante l'invio. Riprova o contatta il Consorzio.";
