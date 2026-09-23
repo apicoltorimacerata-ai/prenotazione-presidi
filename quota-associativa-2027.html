@@ -343,12 +343,14 @@ recalc();
 
 // ---------- adesione: tipo apicoltura suggerito e dati societa' ----------
 const hintTipo = document.getElementById("hintTipo");
+let ultimoArnie = null;   // per riproporre il tipo ogni volta che cambia il numero di arnie
 function aggiornaAdesione(){
   const n = parseInt(arnieEl.value, 10) || 0;
   if (n > 0) {
     const atteso = n <= 10 ? "CONSUMO FAMILIARE" : "COMMERCIALIZZAZIONE";
-    const scelto = form.querySelector('input[name="tipo_apicoltura"]:checked');
-    if (!scelto) {
+    // al cambio del numero di arnie viene preselezionato il tipo corrispondente;
+    // l'apicoltore può comunque cambiarlo a mano (in tal caso compare l'avviso sotto).
+    if (n !== ultimoArnie) {
       const r = form.querySelector(`input[name="tipo_apicoltura"][value="${atteso}"]`);
       if (r) r.checked = true;
     }
@@ -358,6 +360,7 @@ function aggiornaAdesione(){
   } else {
     hintTipo.textContent = "";
   }
+  ultimoArnie = n;
   // segnalazione (non bloccante) se il tipo scelto non corrisponde al numero di arnie
   const scelto2 = (form.querySelector('input[name="tipo_apicoltura"]:checked') || {}).value;
   const avviso = document.getElementById("avvisoTipo");
