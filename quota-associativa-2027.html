@@ -68,6 +68,12 @@
   .review-row:last-child{border-bottom:none;}
   .review-row .rlabel{color:var(--muted);}
   .review-row .rvalue{font-weight:600;text-align:right;word-break:break-word;}
+  #payBox{display:none;margin-top:14px;}
+  a.paybtn{
+    display:block;text-align:center;text-decoration:none;background:#635bff;color:#fff;
+    padding:14px;font-size:1rem;font-weight:700;border-radius:8px;
+  }
+  a.paybtn:hover{background:#4b44d6;}
   .badge-step{display:inline-block;background:var(--green);color:#fff;font-size:.75rem;padding:3px 10px;border-radius:20px;margin-bottom:10px;font-weight:700;}
 </style>
 </head>
@@ -248,6 +254,8 @@
         Ricordati di pagare il totale di <strong id="reviewPagamentoTotale">0,00 €</strong>
         <br><br>
         Il pagamento può essere fatto:<br>
+        <span id="reviewCartaRiga">con carta di credito/debito online, subito, con il pulsante "Paga con carta e invia" qui sotto<br>
+        o<br></span>
         con bonifico bancario IBAN <strong id="reviewIban"></strong> con causale <strong id="reviewCausale"></strong><br>
         o<br>
         direttamente presso gli uffici della segreteria.<br><br>
@@ -259,13 +267,34 @@
       <button type="button" class="secondary" id="backBtn">&larr; Torna al modulo</button>
       <button type="button" class="secondary" id="downloadPdfBtn">Scarica PDF</button>
     </div>
-    <button type="button" id="confirmBtn" style="margin-top:10px;">Conferma e invia</button>
+    <div id="payBox">
+      <a class="paybtn" id="payBtn" href="#">Paga con carta e invia</a>
+      <p class="hint" style="text-align:center;">Pagamento sicuro tramite Stripe. Dopo il pagamento tornerai qui
+        e il modulo, con la ricevuta di pagamento, sar&agrave; inviato automaticamente.</p>
+    </div>
+    <button type="button" id="confirmBtn" style="margin-top:10px;">Invia senza pagare ora (bonifico o segreteria)</button>
     <div class="msg" id="reviewMsg"></div>
 
     <p class="note">
-      Confermando l'invio, i dati saranno salvati nel sistema del Consorzio e il PDF di riepilogo
+      Inviando, i dati saranno salvati nel sistema del Consorzio e il PDF di riepilogo
       sar&agrave; inviato automaticamente all'indirizzo email indicato.
     </p>
+  </div>
+
+  <!-- ============ STEP 3: RITORNO DA STRIPE DOPO IL PAGAMENTO ============ -->
+  <div id="paidSection" style="display:none;">
+    <span class="badge-step">Pagamento ricevuto</span>
+    <div class="card">
+      <h2>Pagamento con carta</h2>
+      <div class="msg ok" style="margin-top:0;">Grazie, il pagamento della quota associativa &egrave; stato ricevuto.</div>
+      <div class="msg" id="paidInvioMsg"></div>
+      <div id="paidDettagli" style="margin-top:12px;"></div>
+      <button type="button" id="paidPdfBtn" style="margin-top:14px;">Scarica PDF con pagamento</button>
+      <p class="hint" id="paidNoDati" style="display:none;">
+        Il riepilogo del modulo non &egrave; disponibile su questo dispositivo o browser: conserva il
+        riferimento del pagamento qui sopra. Il pagamento &egrave; comunque registrato dal Consorzio.
+      </p>
+    </div>
   </div>
 </div>
 
@@ -289,6 +318,54 @@ const FASCE = [
   [501, null, 50]
 ];
 const QUOTA_DELEGA_CENSIMENTO = 10;   // € in più se delega il Consorzio per il censimento
+
+// Pagamento con carta tramite Stripe Payment Links: un link per ogni combinazione
+// fascia arnie + delega censimento, come nel modulo semplificato (quota-2027-pagamento.html).
+// ATTENZIONE: servono link DEDICATI a questo modulo, perche' ogni Payment Link ha un solo
+// indirizzo di ritorno dopo il pagamento, e qui deve essere questa pagina:
+//   https://apicoltorimacerata-ai.github.io/prenotazione-presidi/quota-associativa-2027.html?pagamento=ok&session_id={CHECKOUT_SESSION_ID}
+// (i link del modulo semplificato riportano invece a quota-2027-pagamento.html).
+// In modalità test iniziano con https://buy.stripe.com/test_...
+// Se una combinazione non ha il link, il pulsante "Paga con carta e invia" non viene mostrato.
+const STRIPE_LINKS = {
+  "F1_NO": "https://buy.stripe.com/eVqcN59KTaNPezn3mI83C0a",  // Quota 2027 - da 1 a 10 arnie - senza delega censimento      10 €
+  "F1_SI": "https://buy.stripe.com/3cI4gz6yH7BD3UJ5uQ83C0b",  // Quota 2027 - da 1 a 10 arnie - con delega censimento        20 €
+  "F2_NO": "https://buy.stripe.com/28E00je194pr4YNbTe83C0c",  // Quota 2027 - da 11 a 50 arnie - senza delega censimento     20 €
+  "F2_SI": "https://buy.stripe.com/6oUfZh5uDcVXezncXi83C0d",  // Quota 2027 - da 11 a 50 arnie - con delega censimento       30 €
+  "F3_NO": "https://buy.stripe.com/28E5kD1eng89fDre1m83C0e",  // Quota 2027 - da 51 a 100 arnie - senza delega censimento    30 €
+  "F3_SI": "https://buy.stripe.com/28E00j7CLbRTdvj5uQ83C0f",  // Quota 2027 - da 51 a 100 arnie - con delega censimento      40 €
+  "F4_NO": "https://buy.stripe.com/aFacN57CLf45crf9L683C0g",  // Quota 2027 - da 101 a 500 arnie - senza delega censimento   40 €
+  "F4_SI": "https://buy.stripe.com/3cI7sL5uDaNPfDr6yU83C0h",  // Quota 2027 - da 101 a 500 arnie - con delega censimento     50 €
+  "F5_NO": "https://buy.stripe.com/4gM14ng9h4pr8aZ1eA83C0i",  // Quota 2027 - da 501 arnie in su - senza delega censimento   50 €
+  "F5_SI": "https://buy.stripe.com/00w4gzaOXaNPezn3mI83C0j"   // Quota 2027 - da 501 arnie in su - con delega censimento     60 €
+};
+// stesso suffisso del modulo semplificato: il registro pagamenti (pagamenti-stripe-quota-2027.gs)
+// riconosce i pagamenti di entrambi i moduli.
+const STRIPE_RIF_SUFFISSO = "quota_2027";  // riferimento visibile su Stripe, es. 034AN318_F3_NO_quota_2027
+
+// "Paga con carta e invia": i dati del modulo vengono salvati nel browser e il socio
+// va su Stripe; dopo il pagamento Stripe lo riporta su questa pagina con
+// ?pagamento=ok&session_id=cs_... e solo allora il modulo viene inviato allo
+// script Google, con i dati del pagamento e il PDF "PAGATO".
+// Chiave diversa dal modulo semplificato, che e' sullo stesso sito.
+const STORAGE_PAGAMENTO = "adesione2027_in_pagamento";
+
+function stripeChiave(p){
+  const i = fasciaPer(Number(p.arnie));
+  return i < 0 ? "" : `F${i + 1}_${p.delega_censimento === "SI" ? "SI" : "NO"}`;
+}
+function stripeLinkPer(p){
+  const chiave = stripeChiave(p);
+  const base = STRIPE_LINKS[chiave];
+  if (!base) return "";
+  const url = new URL(base);
+  url.searchParams.set("prefilled_email", String(p.email || "").toLowerCase());
+  url.searchParams.set("client_reference_id",
+    `${p.codice_anagrafe}_${chiave}_${STRIPE_RIF_SUFFISSO}`.replace(/[^A-Za-z0-9_-]/g, "_"));
+  return url.toString();
+}
+const stripeAttivo = Object.values(STRIPE_LINKS).some(Boolean);
+if (!stripeAttivo) document.getElementById("reviewCartaRiga").style.display = "none";
 
 // ------------------------------------------------------------------
 function fmt(n){
@@ -539,6 +616,14 @@ form.addEventListener("submit", (e) => {
   document.getElementById("reviewIban").textContent = IBAN;
   document.getElementById("reviewCausale").textContent = p.causale;
 
+  const link = stripeLinkPer(p);
+  document.getElementById("payBox").style.display = link ? "block" : "none";
+  if (link) {
+    const payBtn = document.getElementById("payBtn");
+    payBtn.href = link;
+    payBtn.textContent = `Paga ${fmt(p.totale)} con carta e invia`;
+  }
+
   form.style.display = "none";
   reviewSection.style.display = "block";
   reviewMsg.className = "msg";
@@ -552,8 +637,8 @@ document.getElementById("backBtn").addEventListener("click", () => {
 });
 
 // ---------- PDF di riepilogo ----------
-function generatePdf(){
-  const p = collectPayload();
+// pagamento (facoltativo): { sessionId, data } -> pagina 1 con "PAGATO" al posto del promemoria
+function generatePdf(p = collectPayload(), pagamento = null){
   const { jsPDF } = window.jspdf;
   const doc = new jsPDF({ unit: "pt", format: "a4" });
   const M = 7 * 2.834645669;
@@ -602,33 +687,52 @@ function generatePdf(){
   row("Importo delega censimento", "+ " + fmt(p.quota_delega));
   y += 6;
   doc.setFont("helvetica", "bold"); doc.setFontSize(12);
-  doc.text("Totale da pagare", M, y); doc.text(fmt(p.totale), M + 230, y);
+  doc.text(pagamento ? "Totale pagato" : "Totale da pagare", M, y); doc.text(fmt(p.totale), M + 230, y);
   y += 25;
 
-  doc.setFont("helvetica", "normal"); doc.setFontSize(10);
-  const lab = "Ricordati di pagare il totale di ";
-  doc.text(lab, M, y);
-  doc.setFont("helvetica", "bold"); doc.text(fmt(p.totale), M + doc.getTextWidth(lab), y);
-  y += 18;
-  doc.setFont("helvetica", "normal"); doc.setFontSize(9);
-  function rigaEtichettaValore(etichetta, valore){
+  if (pagamento) {
+    doc.setFillColor(230,244,234); doc.setDrawColor(23,138,61);
+    doc.roundedRect(M, y - 14, textW, 92, 4, 4, "FD");
+    doc.setTextColor(16,107,46); doc.setFont("helvetica", "bold"); doc.setFontSize(14);
+    doc.text("PAGATO", M + 12, y + 4);
+    doc.setTextColor(0,0,0); doc.setFontSize(10);
     doc.setFont("helvetica", "normal");
-    doc.text(etichetta, M, y);
-    const x = M + doc.getTextWidth(etichetta);
-    doc.setFont("helvetica", "bold");
-    const righe = doc.splitTextToSize(String(valore), textW - (x - M));
-    righe.forEach((l, i) => { doc.text(l, i === 0 ? x : M, y); y += 13; });
-    doc.setFont("helvetica", "normal");
+    doc.text(`Pagato ${fmt(p.totale)} con carta tramite Stripe`, M + 12, y + 22);
+    doc.text(`Data pagamento: ${pagamento.data}`, M + 12, y + 37);
+    doc.text(`Riferimento socio: ${p.stripe_riferimento || "-"}`, M + 12, y + 52);
+    doc.setFontSize(7.5);
+    doc.text(`Riferimento pagamento Stripe: ${pagamento.sessionId}`, M + 12, y + 67);
+    y += 100;
+  } else {
+    doc.setFont("helvetica", "normal"); doc.setFontSize(10);
+    const lab = "Ricordati di pagare il totale di ";
+    doc.text(lab, M, y);
+    doc.setFont("helvetica", "bold"); doc.text(fmt(p.totale), M + doc.getTextWidth(lab), y);
+    y += 18;
+    doc.setFont("helvetica", "normal"); doc.setFontSize(9);
+    function rigaEtichettaValore(etichetta, valore){
+      doc.setFont("helvetica", "normal");
+      doc.text(etichetta, M, y);
+      const x = M + doc.getTextWidth(etichetta);
+      doc.setFont("helvetica", "bold");
+      const righe = doc.splitTextToSize(String(valore), textW - (x - M));
+      righe.forEach((l, i) => { doc.text(l, i === 0 ? x : M, y); y += 13; });
+      doc.setFont("helvetica", "normal");
+    }
+    doc.text("Il pagamento può essere fatto:", M, y); y += 13;
+    if (stripeLinkPer(p)) {
+      ["con carta di credito/debito online dal modulo", "o"]
+        .forEach(l => { doc.text(l, M, y); y += 13; });
+    }
+    rigaEtichettaValore("con bonifico bancario IBAN ", IBAN);
+    rigaEtichettaValore("con causale ", p.causale);
+    [
+      "o",
+      "direttamente presso gli uffici della segreteria.",
+      "La contabile del bonifico deve essere inviata via internet alla segreteria usando l'applicazione."
+    ].forEach(linea => doc.splitTextToSize(linea, textW).forEach(l => { doc.text(l, M, y); y += 13; }));
+    y += 8;
   }
-  doc.text("Il pagamento può essere fatto:", M, y); y += 13;
-  rigaEtichettaValore("con bonifico bancario IBAN ", IBAN);
-  rigaEtichettaValore("con causale ", p.causale);
-  [
-    "o",
-    "direttamente presso gli uffici della segreteria.",
-    "La contabile del bonifico deve essere inviata via internet alla segreteria usando l'applicazione."
-  ].forEach(linea => doc.splitTextToSize(linea, textW).forEach(l => { doc.text(l, M, y); y += 13; }));
-  y += 8;
   doc.setFontSize(8); doc.setTextColor(120,120,120);
   doc.text(`Documento generato il ${new Date().toLocaleString("it-IT")}`, M, y);
 
@@ -731,11 +835,50 @@ document.getElementById("downloadPdfBtn").addEventListener("click", () => {
   generatePdf().save(`${nomeBase(p)}_${NOME_PDF}.pdf`);
 });
 
-// ---------- STEP 2: conferma e invio ----------
+// ---------- invio allo script Google (dati + PDF) ----------
+function scriptConfigurato(){
+  return GOOGLE_SCRIPT_URL && GOOGLE_SCRIPT_URL.indexOf("script.google.com") !== -1;
+}
+async function inviaAlloScript(p, doc, nomeFile){
+  const dataUri = doc.output("datauristring");
+  const body = Object.assign({}, p, { pdf_filename: nomeFile, pdf_base64: dataUri.split(",")[1] });
+  await fetch(GOOGLE_SCRIPT_URL, {
+    method: "POST",
+    mode: "no-cors",
+    headers: { "Content-Type": "text/plain;charset=utf-8" },
+    body: JSON.stringify(body)
+  });
+  return dataUri;
+}
+
+// ---------- STEP 2a: paga con carta e invia ----------
+// Salva i dati nel browser e lascia che il link porti su Stripe (stessa scheda):
+// l'invio vero avviene al ritorno da Stripe, in ritornoDaStripe().
+document.getElementById("payBtn").addEventListener("click", (e) => {
+  reviewMsg.className = "msg";
+  const p = collectPayload();
+  const link = stripeLinkPer(p);
+  if (!link || !scriptConfigurato()) { e.preventDefault(); return; }
+  const dati = Object.assign({}, p, {
+    stripe_riferimento: new URL(link).searchParams.get("client_reference_id"),
+    inviato: false
+  });
+  try {
+    localStorage.setItem(STORAGE_PAGAMENTO, JSON.stringify(dati));
+  } catch (err) {
+    e.preventDefault();
+    reviewMsg.className = "msg err";
+    reviewMsg.textContent = "Questo browser non permette di salvare i dati del modulo durante il pagamento. " +
+      "Usa \"Invia senza pagare ora\" e paga con bonifico o in segreteria.";
+  }
+});
+
+// ---------- STEP 2b: invia senza pagare ora (bonifico o segreteria) ----------
 const confirmBtn = document.getElementById("confirmBtn");
+const confirmBtnTesto = confirmBtn.textContent;
 confirmBtn.addEventListener("click", async () => {
   reviewMsg.className = "msg";
-  if (!GOOGLE_SCRIPT_URL || GOOGLE_SCRIPT_URL.indexOf("script.google.com") === -1) {
+  if (!scriptConfigurato()) {
     reviewMsg.className = "msg err";
     reviewMsg.textContent = "Modulo non ancora configurato (manca l'URL dello script Google).";
     return;
@@ -744,21 +887,16 @@ confirmBtn.addEventListener("click", async () => {
   confirmBtn.textContent = "Invio in corso...";
   try {
     const p = collectPayload();
-    p.pdf_filename = `${nomeBase(p)}_${NOME_PDF}.pdf`;
-    const pdfDataUri = generatePdf().output("datauristring");
-    p.pdf_base64 = pdfDataUri.split(",")[1];
+    p.metodo_pagamento = "BONIFICO O SEGRETERIA";
+    p.pagato = "NO";
+    const nome = `${nomeBase(p)}_${NOME_PDF}.pdf`;
+    const pdfDataUri = await inviaAlloScript(p, generatePdf(p), nome);
 
-    await fetch(GOOGLE_SCRIPT_URL, {
-      method: "POST",
-      mode: "no-cors",
-      headers: { "Content-Type": "text/plain;charset=utf-8" },
-      body: JSON.stringify(p)
-    });
-
-    pdfInviato = { nome: p.pdf_filename, dataUri: pdfDataUri };
+    pdfInviato = { nome, dataUri: pdfDataUri };
 
     reviewMsg.className = "msg ok";
     reviewMsg.textContent = "Invio completato. Riceverai il PDF di riepilogo all'indirizzo email indicato.";
+    document.getElementById("payBox").style.display = "none";
     confirmBtn.textContent = "Inviato";
     confirmBtn.disabled = true;
     document.getElementById("backBtn").style.display = "none";
@@ -767,9 +905,89 @@ confirmBtn.addEventListener("click", async () => {
     reviewMsg.className = "msg err";
     reviewMsg.textContent = "Si è verificato un errore durante l'invio. Riprova o contatta il Consorzio.";
     confirmBtn.disabled = false;
-    confirmBtn.textContent = "Conferma e invia";
+    confirmBtn.textContent = confirmBtnTesto;
   }
 });
+
+// ---------- STEP 3: ritorno da Stripe dopo il pagamento ----------
+(function ritornoDaStripe(){
+  const qs = new URLSearchParams(location.search);
+  if (qs.get("pagamento") !== "ok") return;
+  const sessionId = qs.get("session_id") || "";
+  const sessionValida = /^cs_(test|live)_[A-Za-z0-9]+$/.test(sessionId);
+
+  let p = null;
+  try { p = JSON.parse(localStorage.getItem(STORAGE_PAGAMENTO) || "null"); } catch (e) {}
+  // la data del pagamento resta quella del primo ritorno, anche se si ricarica la pagina
+  if (p && !p.data_pagamento) p.data_pagamento = new Date().toLocaleString("it-IT");
+  const pagamento = {
+    sessionId: sessionValida ? sessionId : "-",
+    data: p ? p.data_pagamento : new Date().toLocaleString("it-IT")
+  };
+
+  form.style.display = "none";
+  reviewSection.style.display = "none";
+  document.getElementById("paidSection").style.display = "block";
+
+  const righe = [["Riferimento pagamento", pagamento.sessionId]];
+  if (p) {
+    righe.unshift(
+      ["Cognome Nome / Denominazione", p.cognome_nome],
+      ["Codice Anagrafe Apistica", p.codice_anagrafe],
+      ["Fascia", p.fascia],
+      ["Delega censimento al Consorzio", p.delega_censimento],
+      ["Importo pagato", fmt(p.totale)]
+    );
+  }
+  document.getElementById("paidDettagli").innerHTML = righe.map(r =>
+    `<div class="review-row"><span class="rlabel">${r[0]}</span><span class="rvalue">${escapeHtml(r[1] || "-")}</span></div>`).join("");
+
+  const paidPdfBtn = document.getElementById("paidPdfBtn");
+  if (!p) {
+    paidPdfBtn.style.display = "none";
+    document.getElementById("paidNoDati").style.display = "block";
+    return;
+  }
+  const nomePagato = `${nomeBase(p)}_${NOME_PDF}_pagato.pdf`;
+  paidPdfBtn.addEventListener("click", () => {
+    generatePdf(p, pagamento).save(nomePagato);
+  });
+
+  // invio automatico del modulo con il pagamento (una sola volta)
+  const invioMsg = document.getElementById("paidInvioMsg");
+  if (p.inviato) {
+    invioMsg.className = "msg ok";
+    invioMsg.textContent = "Il modulo è già stato inviato al Consorzio insieme al pagamento.";
+    return;
+  }
+  if (!sessionValida || !scriptConfigurato()) {
+    invioMsg.className = "msg err";
+    invioMsg.textContent = "Non è stato possibile inviare il modulo: contatta la segreteria del Consorzio " +
+      "indicando il riferimento del pagamento.";
+    return;
+  }
+  Object.assign(p, {
+    metodo_pagamento: "CARTA (STRIPE)",
+    pagato: "SI",
+    stripe_session_id: pagamento.sessionId
+  });
+  invioMsg.className = "msg ok";
+  invioMsg.textContent = "Invio del modulo al Consorzio in corso...";
+  const daInviare = Object.assign({}, p);
+  delete daInviare.inviato;
+  inviaAlloScript(daInviare, generatePdf(p, pagamento), nomePagato)
+    .then(() => {
+      p.inviato = true;
+      try { localStorage.setItem(STORAGE_PAGAMENTO, JSON.stringify(p)); } catch (e) {}
+      invioMsg.textContent = "Modulo inviato. Riceverai all'indirizzo email indicato il PDF con il pagamento " +
+        "e la richiesta di adesione da firmare.";
+    })
+    .catch(() => {
+      try { localStorage.setItem(STORAGE_PAGAMENTO, JSON.stringify(p)); } catch (e) {}
+      invioMsg.className = "msg err";
+      invioMsg.textContent = "Errore durante l'invio del modulo. Ricarica questa pagina per riprovare.";
+    });
+})();
 </script>
 </body>
 </html>
