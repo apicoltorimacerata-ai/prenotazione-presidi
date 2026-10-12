@@ -73,6 +73,10 @@
     padding:14px;font-size:1rem;font-weight:700;border-radius:8px;
   }
   a.paybtn:hover{background:#4b44d6;}
+  .avviso-carta{
+    margin-top:14px;padding:12px 14px;border-radius:8px;font-size:.95rem;line-height:1.4;
+    background:#fff4e0;color:#7a4b00;border:2px solid #f0a020;
+  }
   .badge-step{display:inline-block;background:var(--green);color:#fff;font-size:.75rem;padding:3px 10px;border-radius:20px;margin-bottom:10px;font-weight:700;}
 </style>
 </head>
@@ -151,7 +155,7 @@
         Ricordati di pagare il totale di <strong id="reviewPagamentoTotale">0,00 €</strong>
         <br><br>
         Il pagamento può essere fatto:<br>
-        <span id="reviewCartaRiga">con carta di credito/debito online (il pulsante di pagamento comparirà dopo aver confermato l'invio)<br>
+        <span id="reviewCartaRiga">con carta di credito/debito online (<strong>il pulsante di pagamento comparirà dopo aver confermato l'invio</strong>)<br>
         o<br></span>
         con bonifico bancario IBAN <strong id="reviewIban"></strong> con causale <strong id="reviewCausale"></strong><br>
         o<br>
@@ -163,6 +167,10 @@
     <div class="btnrow" id="reviewBtnRow">
       <button type="button" class="secondary" id="backBtn">&larr; Torna al modulo</button>
       <button type="button" class="secondary" id="downloadPdfBtn">Scarica PDF</button>
+    </div>
+    <div class="avviso-carta" id="avvisoCarta">
+      <strong>Vuoi pagare con carta?</strong> Premi prima <strong>"Conferma e invia"</strong>:
+      il pulsante di pagamento comparirà subito qui sotto.
     </div>
     <button type="button" id="confirmBtn" style="margin-top:10px;">Conferma e invia</button>
     <div class="msg" id="reviewMsg"></div>
@@ -260,7 +268,10 @@ function stripeLinkPer(p){
   return url.toString();
 }
 const stripeAttivo = Object.values(STRIPE_LINKS).some(Boolean);
-if (!stripeAttivo) document.getElementById("reviewCartaRiga").style.display = "none";
+if (!stripeAttivo) {
+  document.getElementById("reviewCartaRiga").style.display = "none";
+  document.getElementById("avvisoCarta").style.display = "none";
+}
 
 // ------------------------------------------------------------------
 function fmt(n){
@@ -571,6 +582,7 @@ confirmBtn.addEventListener("click", async () => {
     reviewMsg.textContent = esito.email === false
       ? "Modulo ricevuto dal Consorzio, ma l'email di riepilogo non è partita: la segreteria controllerà i dati e ti contatterà."
       : "Invio completato. Riceverai il PDF di riepilogo all'indirizzo email indicato.";
+    document.getElementById("avvisoCarta").style.display = "none";
     const link = stripeLinkPer(p);
     if (link) {
       reviewMsg.textContent += " Ora puoi pagare subito con carta, oppure con bonifico o in segreteria.";
