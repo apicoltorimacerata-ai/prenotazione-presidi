@@ -295,6 +295,37 @@
 // ------------------------------------------------------------------
 const GOOGLE_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzfSl2l8DmnSwyoqkyZb4leuPZMw_dXTWsZKyjT5jkbVFuwuQTPtU_sL_nb7QM2ee5rfg/exec";
 
+// ---------- invio allo script Google, leggendo la sua risposta ----------
+// Errore da mostrare così com'è all'utente (es. "Troppi invii ravvicinati...").
+function erroreUtente(msg){
+  const e = new Error(msg);
+  e.utente = true;
+  return e;
+}
+function testoErrore(err){
+  return "La prenotazione NON è stata inviata. " + (err && err.utente ? err.message : "Riprova o contatta il Consorzio.");
+}
+// Se lo script rifiuta l'invio (dati non validi, troppi invii, limite superato...)
+// lancia un errore con il suo messaggio.
+async function postAlloScript(dati){
+  let r;
+  try {
+    r = await fetch(GOOGLE_SCRIPT_URL, {
+      method: "POST",
+      headers: { "Content-Type": "text/plain;charset=utf-8" },
+      body: JSON.stringify(dati)
+    });
+  } catch (e) {
+    throw erroreUtente("Connessione non riuscita: controlla la rete e riprova.");
+  }
+  let esito = null;
+  try { esito = await r.json(); } catch (e) {}
+  if (!esito || esito.ok !== true) {
+    throw erroreUtente((esito && (esito.errore || esito.message)) || "Riprova o contatta il Consorzio.");
+  }
+  return esito;
+}
+
 // Moltiplicatore massimo consentito: il totale ordinato non può superare
 // (numero famiglie/arnie denunciate) x LIMITE_PER_FAMIGLIA
 const LIMITE_PER_FAMIGLIA = 9.9;
@@ -990,14 +1021,8 @@ confirmBtn.addEventListener("click", async () => {
     payload.pdf_filename = `${nomeBase || "prenotazione"}_presidi_2027.pdf`;
     payload.pdf_base64 = pdfDoc.output("datauristring").split(",")[1];
 
-    await fetch(GOOGLE_SCRIPT_URL, {
-      method: "POST",
-      mode: "no-cors",
-      headers: { "Content-Type": "text/plain;charset=utf-8" },
-      body: JSON.stringify(payload)
-    });
+    await postAlloScript(payload);
 
-    // in modalità no-cors la risposta non è leggibile: consideriamo l'invio riuscito
     reviewMsg.className = "msg ok";
     reviewMsg.innerHTML = "Prenotazione inviata correttamente. Riceverai il PDF di riepilogo all'indirizzo email indicato.";
     confirmBtn.textContent = "Prenotazione inviata";
@@ -1014,7 +1039,7 @@ confirmBtn.addEventListener("click", async () => {
 
   } catch (err) {
     reviewMsg.className = "msg err";
-    reviewMsg.textContent = "Si è verificato un errore durante l'invio. Riprova o contatta il Consorzio.";
+    reviewMsg.textContent = testoErrore(err);
     confirmBtn.disabled = false;
     confirmBtn.textContent = "Conferma e invia prenotazione";
   }

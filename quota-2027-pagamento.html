@@ -515,6 +515,37 @@ document.getElementById("downloadPdfBtn").addEventListener("click", () => {
   generatePdf().save(`${nomeBase(p)}_${NOME_PDF}.pdf`);
 });
 
+// ---------- invio allo script Google, leggendo la sua risposta ----------
+// Errore da mostrare così com'è all'utente (es. "Troppi invii ravvicinati...").
+function erroreUtente(msg){
+  const e = new Error(msg);
+  e.utente = true;
+  return e;
+}
+function testoErrore(err){
+  return "Il modulo NON è stato inviato. " + (err && err.utente ? err.message : "Riprova o contatta il Consorzio.");
+}
+// Se lo script rifiuta l'invio (dati non validi, troppi invii, server occupato...)
+// lancia un errore con il suo messaggio.
+async function postAlloScript(dati){
+  let r;
+  try {
+    r = await fetch(GOOGLE_SCRIPT_URL, {
+      method: "POST",
+      headers: { "Content-Type": "text/plain;charset=utf-8" },
+      body: JSON.stringify(dati)
+    });
+  } catch (e) {
+    throw erroreUtente("Connessione non riuscita: controlla la rete e riprova.");
+  }
+  let esito = null;
+  try { esito = await r.json(); } catch (e) {}
+  if (!esito || esito.ok !== true) {
+    throw erroreUtente((esito && (esito.errore || esito.message)) || "Riprova o contatta il Consorzio.");
+  }
+  return esito;
+}
+
 // ---------- STEP 2: conferma e invio ----------
 const confirmBtn = document.getElementById("confirmBtn");
 confirmBtn.addEventListener("click", async () => {
@@ -532,17 +563,14 @@ confirmBtn.addEventListener("click", async () => {
     const pdfDataUri = generatePdf().output("datauristring");
     p.pdf_base64 = pdfDataUri.split(",")[1];
 
-    await fetch(GOOGLE_SCRIPT_URL, {
-      method: "POST",
-      mode: "no-cors",
-      headers: { "Content-Type": "text/plain;charset=utf-8" },
-      body: JSON.stringify(p)
-    });
+    const esito = await postAlloScript(p);
 
     pdfInviato = { nome: p.pdf_filename, dataUri: pdfDataUri };
 
     reviewMsg.className = "msg ok";
-    reviewMsg.textContent = "Invio completato. Riceverai il PDF di riepilogo all'indirizzo email indicato.";
+    reviewMsg.textContent = esito.email === false
+      ? "Modulo ricevuto dal Consorzio, ma l'email di riepilogo non è partita: la segreteria controllerà i dati e ti contatterà."
+      : "Invio completato. Riceverai il PDF di riepilogo all'indirizzo email indicato.";
     const link = stripeLinkPer(p);
     if (link) {
       reviewMsg.textContent += " Ora puoi pagare subito con carta, oppure con bonifico o in segreteria.";
@@ -564,7 +592,7 @@ confirmBtn.addEventListener("click", async () => {
     setTimeout(() => { form.reset(); recalc(); }, 300);
   } catch (err) {
     reviewMsg.className = "msg err";
-    reviewMsg.textContent = "Si è verificato un errore durante l'invio. Riprova o contatta il Consorzio.";
+    reviewMsg.textContent = testoErrore(err);
     confirmBtn.disabled = false;
     confirmBtn.textContent = "Conferma e invia";
   }

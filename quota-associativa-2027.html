@@ -839,16 +839,40 @@ document.getElementById("downloadPdfBtn").addEventListener("click", () => {
 function scriptConfigurato(){
   return GOOGLE_SCRIPT_URL && GOOGLE_SCRIPT_URL.indexOf("script.google.com") !== -1;
 }
+// Errore da mostrare così com'è all'utente (es. "Troppi invii ravvicinati...").
+function erroreUtente(msg){
+  const e = new Error(msg);
+  e.utente = true;
+  return e;
+}
+function testoErrore(err){
+  return "Il modulo NON è stato inviato. " + (err && err.utente ? err.message : "Riprova o contatta il Consorzio.");
+}
+// Invia allo script e legge la sua risposta: se lo script rifiuta l'invio
+// (dati non validi, troppi invii, server occupato...) lancia un errore con il suo messaggio.
+async function postAlloScript(dati){
+  let r;
+  try {
+    r = await fetch(GOOGLE_SCRIPT_URL, {
+      method: "POST",
+      headers: { "Content-Type": "text/plain;charset=utf-8" },
+      body: JSON.stringify(dati)
+    });
+  } catch (e) {
+    throw erroreUtente("Connessione non riuscita: controlla la rete e riprova.");
+  }
+  let esito = null;
+  try { esito = await r.json(); } catch (e) {}
+  if (!esito || esito.ok !== true) {
+    throw erroreUtente((esito && (esito.errore || esito.message)) || "Riprova o contatta il Consorzio.");
+  }
+  return esito;
+}
 async function inviaAlloScript(p, doc, nomeFile){
   const dataUri = doc.output("datauristring");
   const body = Object.assign({}, p, { pdf_filename: nomeFile, pdf_base64: dataUri.split(",")[1] });
-  await fetch(GOOGLE_SCRIPT_URL, {
-    method: "POST",
-    mode: "no-cors",
-    headers: { "Content-Type": "text/plain;charset=utf-8" },
-    body: JSON.stringify(body)
-  });
-  return dataUri;
+  const esito = await postAlloScript(body);
+  return { dataUri, esito };
 }
 
 // ---------- STEP 2a: paga con carta e invia ----------
@@ -890,12 +914,14 @@ confirmBtn.addEventListener("click", async () => {
     p.metodo_pagamento = "BONIFICO O SEGRETERIA";
     p.pagato = "NO";
     const nome = `${nomeBase(p)}_${NOME_PDF}.pdf`;
-    const pdfDataUri = await inviaAlloScript(p, generatePdf(p), nome);
+    const { dataUri: pdfDataUri, esito } = await inviaAlloScript(p, generatePdf(p), nome);
 
     pdfInviato = { nome, dataUri: pdfDataUri };
 
     reviewMsg.className = "msg ok";
-    reviewMsg.textContent = "Invio completato. Riceverai il PDF di riepilogo all'indirizzo email indicato.";
+    reviewMsg.textContent = esito.email === false
+      ? "Modulo ricevuto dal Consorzio, ma l'email di riepilogo non è partita: la segreteria controllerà i dati e ti contatterà."
+      : "Invio completato. Riceverai il PDF di riepilogo all'indirizzo email indicato.";
     document.getElementById("payBox").style.display = "none";
     confirmBtn.textContent = "Inviato";
     confirmBtn.disabled = true;
@@ -903,7 +929,7 @@ confirmBtn.addEventListener("click", async () => {
     setTimeout(() => { form.reset(); ultimoArnie = null; recalc(); aggiornaAdesione(); }, 300);
   } catch (err) {
     reviewMsg.className = "msg err";
-    reviewMsg.textContent = "Si è verificato un errore durante l'invio. Riprova o contatta il Consorzio.";
+    reviewMsg.textContent = testoErrore(err);
     confirmBtn.disabled = false;
     confirmBtn.textContent = confirmBtnTesto;
   }
@@ -976,16 +1002,23 @@ confirmBtn.addEventListener("click", async () => {
   const daInviare = Object.assign({}, p);
   delete daInviare.inviato;
   inviaAlloScript(daInviare, generatePdf(p, pagamento), nomePagato)
-    .then(() => {
+    .then(({ esito }) => {
       p.inviato = true;
       try { localStorage.setItem(STORAGE_PAGAMENTO, JSON.stringify(p)); } catch (e) {}
-      invioMsg.textContent = "Modulo inviato. Riceverai all'indirizzo email indicato il PDF con il pagamento " +
-        "e la richiesta di adesione da firmare.";
+      if (esito.pagato === "SI" && esito.email !== false) {
+        invioMsg.textContent = "Modulo inviato. Riceverai all'indirizzo email indicato il PDF con il pagamento " +
+          "e la richiesta di adesione da firmare.";
+      } else {
+        invioMsg.className = "msg err";
+        invioMsg.textContent = "Modulo ricevuto dal Consorzio, ma il pagamento non risulta ancora verificato e l'email " +
+          "di conferma non è partita. NON ripetere il pagamento: la segreteria controllerà e ti contatterà.";
+      }
     })
-    .catch(() => {
+    .catch((err) => {
       try { localStorage.setItem(STORAGE_PAGAMENTO, JSON.stringify(p)); } catch (e) {}
       invioMsg.className = "msg err";
-      invioMsg.textContent = "Errore durante l'invio del modulo. Ricarica questa pagina per riprovare.";
+      invioMsg.textContent = testoErrore(err) + " Il pagamento è comunque registrato: ricarica questa pagina per " +
+        "riprovare l'invio, NON ripetere il pagamento.";
     });
 })();
 </script>

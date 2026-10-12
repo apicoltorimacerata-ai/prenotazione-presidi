@@ -131,6 +131,37 @@
 // (lo stesso URL per entrambi i moduli: censimento e documenti)
 // ------------------------------------------------------------------
 const GOOGLE_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzIcn5XN-ccYvu0apWXMM3_7jNpC25rf3oRtXFNP2P-nVUu4fF5h0cQO3wMe7suA5x54w/exec";
+
+// ---------- invio allo script Google, leggendo la sua risposta ----------
+// Errore da mostrare così com'è all'utente (es. "Troppi invii ravvicinati...").
+function erroreUtente(msg){
+  const e = new Error(msg);
+  e.utente = true;
+  return e;
+}
+function testoErrore(err){
+  return "L'invio NON è riuscito. " + (err && err.utente ? err.message : "Riprova o contatta il Consorzio.");
+}
+// Se lo script rifiuta l'invio (dati non validi, troppi invii, file non valido...)
+// lancia un errore con il suo messaggio.
+async function postAlloScript(dati){
+  let r;
+  try {
+    r = await fetch(GOOGLE_SCRIPT_URL, {
+      method: "POST",
+      headers: { "Content-Type": "text/plain;charset=utf-8" },
+      body: JSON.stringify(dati)
+    });
+  } catch (e) {
+    throw erroreUtente("Connessione non riuscita: controlla la rete e riprova.");
+  }
+  let esito = null;
+  try { esito = await r.json(); } catch (e) {}
+  if (!esito || esito.ok !== true) {
+    throw erroreUtente((esito && (esito.errore || esito.message)) || "Riprova o contatta il Consorzio.");
+  }
+  return esito;
+}
 const TIPO_MODULO = "documenti";
 // file: [id input, obbligatorio?]
 const FILES = [["file_adesione", false], ["file_bonifico", true]];
@@ -264,14 +295,8 @@ const FILES = [["file_adesione", false], ["file_bonifico", true]];
         });
       }
 
-      await fetch(GOOGLE_SCRIPT_URL, {
-        method: "POST",
-        mode: "no-cors",
-        headers: { "Content-Type": "text/plain;charset=utf-8" },
-        body: JSON.stringify(payload)
-      });
+      await postAlloScript(payload);
 
-      // in modalità no-cors la risposta non è leggibile: consideriamo l'invio riuscito
       msg.className = "msg ok";
       msg.textContent = "Invio completato. Riceverai un'email di conferma all'indirizzo indicato.";
       sendBtn.textContent = "Inviato";
@@ -279,7 +304,7 @@ const FILES = [["file_adesione", false], ["file_bonifico", true]];
       setTimeout(() => { sendBtn.disabled = false; sendBtn.textContent = sendLabel; }, 4000);
     } catch (err) {
       msg.className = "msg err";
-      msg.textContent = "Si è verificato un errore durante l'invio. Riprova o contatta il Consorzio.";
+      msg.textContent = testoErrore(err);
       sendBtn.disabled = false;
       sendBtn.textContent = sendLabel;
     }
