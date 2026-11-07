@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Compila Modulo Adesione 2026 - Apicoltori MC</title>
+<title>Compila Modulo Adesione 2027 - Apicoltori MC</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <style>
   :root{
@@ -79,7 +79,7 @@
 </head>
 <body>
 <div class="wrap">
-  <h1>Compila Modulo Adesione 2026</h1>
+  <h1>Compila Modulo Adesione 2027</h1>
   <p class="subtitle">Consorzio Apistico Provinciale di Macerata &mdash; indica le arnie da denunciare nel censimento 2026 per calcolare la quota associativa</p>
 
   <!-- ============ STEP 1: MODULO ============ -->
@@ -306,8 +306,8 @@
 const GOOGLE_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzbG6iHkwy38g73_y52g2g0skFHb5CSDJCr06VTT-OqVpqfRF7QF6pTzB0ASdjG8Oqf/exec";
 
 const IBAN = "IT60Q0331713401000000060816";
-const CAUSALE_SUFFISSO = "adesione_2026";  // finale della causale del bonifico (es. 034AN318_ROSSI MARIO_adesione_2026)
-const NOME_PDF = "adesione_2026";     // finale del nome del file PDF (es. 034AN318_ROSSI_MARIO_adesione_2026.pdf)
+const CAUSALE_SUFFISSO = "adesione_2027";  // finale della causale del bonifico (es. 034AN318_ROSSI MARIO_adesione_2026)
+const NOME_PDF = "adesione_2027";     // finale del nome del file PDF (es. 034AN318_ROSSI_MARIO_adesione_2026.pdf)
 
 // Fasce quota associativa: [arnie da, arnie a (null = senza limite), quota €]
 const FASCE = [
@@ -647,7 +647,7 @@ function generatePdf(p = collectPayload(), pagamento = null){
   let y = M + 10;
 
   doc.setFont("helvetica", "bold"); doc.setFontSize(16);
-  doc.text("Modulo Adesione 2026", pageW / 2, y, { align: "center" });
+  doc.text("Modulo Adesione 2027", pageW / 2, y, { align: "center" });
   y += 18;
   doc.setFontSize(10); doc.setFont("helvetica", "normal");
   doc.text("Consorzio Apistico Provinciale di Macerata", M, y);
