@@ -5,7 +5,6 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Prenotazione Presidi 2026 - Apicoltori MC</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <style>
   :root{
     --green:#178a3d;
@@ -220,7 +219,6 @@
 
     <div class="card">
       <h2>Presidi Sanitari</h2>
-      <p class="hint" id="listinoStatus">Caricamento listino prezzi (listino.xlsx)...</p>
       <div id="products"></div>
       <div class="review-row"><span class="rlabel">Subtotale presidi</span><span class="rvalue" id="subtotalePresidi">0,00 €</span></div>
       <div class="review-row"><span class="rlabel" id="labelContributoRegione">Contributo Regione</span><span class="rvalue" id="contributoRegione">- 0,00 €</span></div>
@@ -330,10 +328,9 @@ async function postAlloScript(dati){
 // (numero famiglie/arnie denunciate) x LIMITE_PER_FAMIGLIA
 const LIMITE_PER_FAMIGLIA = 9.9;
 
-// Listino di riserva, usato SOLO se "listino.xlsx" non può essere caricato
-// (es. file HTML aperto direttamente con doppio click invece che da un server).
-// Il listino "vero" va tenuto aggiornato nel file Excel, non qui.
-const DEFAULT_PRODUCTS = [
+// LISTINO PREZZI: i prezzi si modificano qui (IVA inclusa).
+// NON modificare le "key": servono al foglio Google per abbinare i dati.
+const PRODUCTS = [
   { key: "apilife_var",      name: "Apilife Var",              desc: "2 sacchetti per arnia",                             price: 2.17,   unit: "Numero sacchetti singoli" },
   { key: "bioxal_35gr",      name: "Api Bioxal busta 35 gr",   desc: "x 10 arnie",                                        price: 10.51,  unit: "Numero buste" },
   { key: "bioxal_175gr",     name: "Api Bioxal busta 175 gr",  desc: "x 50 arnie",                                        price: 42.89,  unit: "Numero buste" },
@@ -346,17 +343,13 @@ const DEFAULT_PRODUCTS = [
   { key: "apitraz",          name: "Apitraz",                  desc: "confezione (1 conf. 10 strisce 30x4cm)",            price: 30.25,  unit: "Numero confezioni singole" }
 ];
 
-// Percentuali di riserva, usate SOLO se il foglio "Parametri" di listino.xlsx
-// non può essere letto. I valori "veri" vanno tenuti aggiornati nell'Excel.
-const DEFAULT_PARAMS = {
+// PARAMETRI: percentuale contributo Regione (sottratta) e spese amministrative (aggiunte)
+const PARAMS = {
   contributoRegionePct: 75,
   speseAmministrativePct: 5
 };
 
-let PRODUCTS = [];
-let PARAMS = { ...DEFAULT_PARAMS };
 const productsEl = document.getElementById("products");
-const listinoStatus = document.getElementById("listinoStatus");
 
 function renderProducts(){
   productsEl.innerHTML = "";
@@ -383,52 +376,6 @@ function renderProducts(){
   recalc();
 }
 
-// -------- caricamento del listino da listino.xlsx (fogli "Listino" e "Parametri") --------
-async function loadListino(){
-  try {
-    const resp = await fetch("listino.xlsx");
-    if (!resp.ok) throw new Error("file non trovato");
-    const buf = await resp.arrayBuffer();
-    const wb = XLSX.read(buf, { type: "array" });
-
-    const sheet = wb.Sheets["Listino"] || wb.Sheets[wb.SheetNames[0]];
-    const rows = XLSX.utils.sheet_to_json(sheet, { defval: "" });
-    const loaded = rows
-      .filter(r => r["Chiave"] && r["Nome Prodotto"])
-      .map(r => ({
-        key: String(r["Chiave"]).trim(),
-        name: String(r["Nome Prodotto"]).trim(),
-        desc: String(r["Descrizione"] || "").trim(),
-        price: parseFloat(r["Prezzo Unitario (€)"]) || 0,
-        unit: String(r["Unità di Misura (etichetta campo quantità)"] || "Quantità").trim()
-      }));
-    if (!loaded.length) throw new Error("listino vuoto");
-    PRODUCTS = loaded;
-
-    // foglio "Parametri": percentuali contributo regione / spese amministrative
-    const paramSheet = wb.Sheets["Parametri"];
-    if (paramSheet) {
-      const paramRows = XLSX.utils.sheet_to_json(paramSheet, { defval: "" });
-      paramRows.forEach(r => {
-        const chiave = String(r["Chiave"] || "").trim();
-        const val = parseFloat(r["Percentuale (%)"]);
-        if (chiave === "contributo_regione_pct" && !isNaN(val)) PARAMS.contributoRegionePct = val;
-        if (chiave === "spese_amministrative_pct" && !isNaN(val)) PARAMS.speseAmministrativePct = val;
-      });
-    }
-
-    listinoStatus.textContent = "Listino caricato ok.";
-    listinoStatus.style.color = "";
-  } catch (err) {
-    PRODUCTS = DEFAULT_PRODUCTS;
-    PARAMS = { ...DEFAULT_PARAMS };
-    listinoStatus.textContent = "Impossibile caricare listino.xlsx (assicurati che il file si trovi nella stessa cartella e che la pagina sia aperta da un server web, non con doppio click): vengono usati i prezzi e le percentuali predefinite incorporate nella pagina.";
-    listinoStatus.style.color = "#b3261e";
-  }
-  updateBreakdownLabels();
-  renderProducts();
-}
-
 function updateBreakdownLabels(){
   const rPct = PARAMS.contributoRegionePct;
   const sPct = PARAMS.speseAmministrativePct;
@@ -442,7 +389,11 @@ function updateBreakdownLabels(){
   });
 }
 
-loadListino();
+// avvio dopo che tutto lo script è stato letto (come faceva il vecchio caricamento asincrono)
+document.addEventListener("DOMContentLoaded", () => {
+  updateBreakdownLabels();
+  renderProducts();
+});
 
 // ------------------------------------------------------------------
 // ALLEGATI CENSIMENTO / ADESIONE: se l'utente dichiara di aver già
