@@ -108,6 +108,7 @@
   .msg.ok{background:#e6f4ea;color:#1e7b34;border:1px solid #b6e0c2;display:block;}
   .msg.err{background:#fdecea;color:#b3261e;border:1px solid #f4c7c3;display:block;}
   .note{font-size:.8rem;color:var(--muted);margin-top:20px;line-height:1.4;}
+  .note-avviso{background:#000;color:#fff;font-weight:700;font-size:.9rem;padding:12px 14px;border-radius:8px;}
   #reviewSection{display:none;}
   .review-row{
     display:flex;justify-content:space-between;gap:12px;
@@ -278,10 +279,10 @@
     <button type="button" id="confirmBtn" style="margin-top:10px;">Conferma e invia prenotazione</button>
     <div class="msg" id="reviewMsg"></div>
 
-    <p class="note">
-      Confermando l'invio, i dati saranno salvati nel sistema del Consorzio e il PDF di riepilogo
-      sar&agrave; inviato automaticamente all'indirizzo email indicato. Non sar&agrave; possibile
-      modificare la prenotazione autonomamente dopo l'invio.
+    <p class="note note-avviso">
+      La prenotazione diventa definitiva solo premendo il pulsante <span style="background:var(--green);color:#fff;padding:1px 6px;border-radius:4px;white-space:nowrap;">Conferma e invia prenotazione</span>.
+      Controllare sulla posta (anche nella cartella spam) di ricevere mail di conferma della
+      avvenuta prenotazione.
     </p>
   </div>
 </div>
